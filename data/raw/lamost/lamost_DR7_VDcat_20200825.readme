@@ -1,0 +1,38 @@
+Content: Velocity dispersion catalog of galaxy sources in the LAMOST Data Release 7
+Source paper: Napolitano et al. 2020, MNRAS, vol., pp.  (preprint: arXiv:2007.07823)
+
+Short Description
+LAMOST spectra have been fitted using a fully automatic Python wrapper procedure which selects, prepares, and applies the Penalized Pixel-Fitting, pPXF, software (Cappellari 2017), in order to optimise the best-fit of galaxy spectra in the rest frame wavelength range, i.e. 3700-9900 AA. We used a selection of 40 MILES simple stellar population synthesis models (SSPs) from Vazdekis et al. (2010) as reference templates. The choice of a limited number of templates allowed us to reduce the computational time, without affecting the accuracy of the VD estimates. The selected SSPs have a unimodal IMF with logarithmic slope Γ=1.3, metallicity ranging between -1.71 and 0.22, and age ranging between 1 Gyr and 12 Gyr. Following the pPXF prescriptions, template spectra are rebinned at the same velocity sampling of the LAMOST spectra. Subsequently, the template spectra are convolved with a Gaussian profile at the same instrumental resolution of 2.4 AA (Xiang et al. 2015) after having corrected the FWHM by the galaxy redshift (i.e. FWHMrest=FWHMobs/(1 + z), as prescribed by pPXF).
+
+For this first LAMOST-DR7 catalog we report the following information for 85861 galaxies:
+• obsid:			the unique LAMOST spectrum ID;
+• ra:				right ascension (J2000) of the spectrum;
+• dec				declination (J2000) of the spectrum;
+• specname:			the unique LAMOST filename ID;
+• z_lamost:			the redshift already measured by LAMOST pipeline
+• z_ppxf:			the redshift measured by the pPXF wrapper;
+• z_ppxf_err:		the pPXF redshift error;
+• veldisp:			the velocity dispersion;
+• veldisp_err:		the velocity dispersion error;
+• chi2_ppxf:		the χ2/DOF measured by pPXF on the fitted wavelength window;
+• SRR_fit:			the a posteriori measured Signal-to-Residuals on the fitted wavelength window;
+• sng:				the LAMOST released g−band SNR;
+• snr:				the LAMOST released r−band SNR;
+• sni:				the LAMOST released i−band SNR.
+
+The offset in redshift between the LAMOST pipeline and the pPXF wrapper measurements arises from the fact that pPXF just refines, by matching the best linear combination of templates with the observed spectrum, the radial velocity starting from an initial redshift guess (which in our case is the one measured by LAMOST by making use of PCA methods, Yang et al. 2018).
+
+Credits: papers using data contained in this catalog or quantities derived by the new measurements provided in this catalog are kindly invited to refer to the paper Napolitano et al., 2020, MNRAS, vol., pp. (ADS link).
+
+Contacts
+For any further information/data please contact
+Nicola R. Napolitano, SYSU. Mail: napolitano@mail.sysus.edu.cn
+Giuseppe D'Ago, PUC. Mail: gdago@astro.puc.cl 
+
+Bibliography:
+
+-	Napolitano N. R., D'Ago G., Tortora C., Zhao G., Luo A.-L., Tang B., Zhang W., et al., 2020, arXiv, arXiv:2007.07823
+-	Cappellari M., 2017, MNRAS, 466, 798
+-	Vazdekis A., Sánchez-Blázquez P., Falcón-Barroso J., Cenarro A. J., Beasley M. A., Cardiel N., Gorgas J., et al., 2010, MNRAS, 404, 1639
+-	Xiang M. S., Liu X. W., Yuan H. B., Huang Y., Huo Z. Y., Zhang H. W., Chen B. Q., et al., 2015, MNRAS, 448, 822
+-	Yang M., Wu H., Yang F., Lam M. I., Cao T.-W., Wu C.-J., Zhao P.-S., et al., 2018, ApJS, 234, 5

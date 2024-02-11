@@ -1,14 +1,15 @@
 /thesis-research-2.0
 |-- data/
     |-- raw/                     # no modification from sources
-        |-- r_e_jrl             # John's radii measurements
-        |-- 6dfgs               # Campbell's FP data
-        |-- sdss                # Obtained from DR14
-        |-- lamost              # Obtained from Khaled
-        |-- sky_coord           # Sky coordinates from all these sources (to be fed into 2MASS XSC)
-        |-- 2mass               # Obtained from 2MASS XSC
+        |-- r_e_jrl/             # John's radii measurements
+        |-- 6dfgs/               # Campbell's FP data
+        |-- sdss/                # Obtained from DR14
+        |-- lamost/              # Obtained from Khaled
+        |-- 2mass/               # Obtained from 2MASS XSC
+    |-- preprocessed/
+        |-- sky_coord/           # Sky coordinates from all these sources (to be fed into 2MASS XSC)
+        |-- spectro_photo/        # Combined spectroscopy and photometry
     |-- processed/               # after aggregation and data wrangling
-        |-- spectro_photo
         |-- veldisp_calibrated
         |-- zmags_cut
         |-- elliptical_selected

@@ -2,45 +2,40 @@
 A new tidied version of my thesis research codes and resources.
 
 This repo is structured as follows (still updating):
-/thesis-research-2.0
-|-- data/
-    |-- raw/                     # no modification from sources
-        |-- r_e_jrl/             # John's radii measurements
-        |-- 6dfgs/               # Campbell's FP data
-        |-- sdss/                # Obtained from DR14
-        |-- lamost/              # Obtained from Khaled
-        |-- 2mass/               # Obtained from 2MASS XSC
-    |-- preprocessed/
-        |-- sky_coord/           # Sky coordinates from all these sources (to be fed into 2MASS XSC)
-        |-- spectro_photo/       # Combined spectroscopy and photometry
-    |-- processed/               # after aggregation and data wrangling
-        |-- veldisp_calibrated
-        |-- zmags_cut
-        |-- elliptical_selected
-    |-- foundation/              # data for main analysis
-        |-- fp_sample
-        |-- pv_sample
-        |-- smoothing
-        |-- bulk_flow
-    |-- external_data/           # supplementary data from external sources (besides spectro+photo)
-        |-- etg_sample
-        |-- pv_sample
-        |-- logdist_measurements
-|-- utils/
-    |-- __init__.py
-    |-- logging_config.py
-    |-- cosmoFunc.py
-    |-- calc_kcor.py
-    |-- galactic_extinction.py
-|-- src/
-    |-- preprocessing.py      # combine spectroscopy and photometry data + group and clusters data
-    |-- processing.py         # derive the FP observables from the combined spectro+photo data
-    |-- select_elliptical.py
-    |-- fit_fp.py
-    |-- 
-|-- img/
-    |-- <.py name>
-|-- log/
-|-- requirements.txt
-|-- notebook.ipynb
-|-- README.md
+thesis-research-2.0/
+├── data/
+│   ├── raw/
+│   │   ├── 6dfgs/
+│   │   ├── sdss/
+│   │   ├── lamost/
+│   │   ├── 2mass/
+│   │   └── r_e_jrl/
+│   ├── preprocessed/
+│   │   ├── sky_coord/
+│   │   └── spectrophoto/
+│   ├── processed/
+│   │   ├── veldisp_calibrated/
+│   │   ├── zmags_cut/
+│   │   └── etg_selected/
+│   └── foundation/
+│       ├── fp_sample/
+│       ├── pv_sample/
+│       ├── smoothing/
+│       └── bulk_flow/
+├── src/
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── logging_config.py
+│   │   ├── cosmoFunc.py
+│   │   ├── calc_kcor.py
+│   │   └── gal_ext.py
+│   ├── get_coordinates.py
+│   ├── preprocessing.py
+│   ├── processing.py
+│   ├── select_etg.py
+│   └── fit_fp.py
+├── img/
+├── log/
+├── requirements.txt
+├── notebook.ipynb
+└── README.md

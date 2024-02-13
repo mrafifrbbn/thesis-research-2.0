@@ -2,6 +2,7 @@
 A new tidied version of my thesis research codes and resources.
 
 This repo is structured as follows (still updating):
+```bash
 thesis-research-2.0/
 ├── data/
 │   ├── raw/
@@ -39,3 +40,4 @@ thesis-research-2.0/
 ├── requirements.txt
 ├── notebook.ipynb
 └── README.md
+```

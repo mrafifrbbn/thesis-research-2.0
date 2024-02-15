@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
-SDFGS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/campbell_table8.ascii')
+SDFGS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits')
 SDSS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/sdss/SDSS_spectro_mrafifrbbn.csv')
 LAMOST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/lamost/lamost_DR7_VDcat_20200825.fits')
 
@@ -22,8 +22,10 @@ def get_eq_coords():
     logger.info('Fetching sky coordinates from the raw data sources...')
 
     # 6dFGS galaxies: ra still in hour, so need to convert to degrees
-    df1 = pd.read_csv(SDFGS_FILEPATH, delim_whitespace=True)[['ra', 'dec']]
-    df1['ra'] = df1['ra']*15
+    with fits.open(SDFGS_FILEPATH) as hdul:
+        df1 = Table(hdul[1].data).to_pandas()[['RAJ2000', 'DEJ2000']]
+    df1['RAJ2000'] *= 15
+    df1 = df1.rename({'RAJ2000': 'ra', 'DEJ2000': 'dec'}, axis=1)
     output_path = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/6dfgs.ascii')
     logger.info(f'Total 6dFGS galaxies: {len(df1)}. Saving the coordinates to {output_path}')
     Table.from_pandas(df1).write(output_path, format='ipac', overwrite=True)

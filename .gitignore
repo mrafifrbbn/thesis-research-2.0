@@ -1,10 +1,14 @@
 *.DS_Store
 *_tmass.csv
 *_log.txt
+*_error.txt
 
 docs/~$*
 
-data/raw/2mass/*.csv
+data/raw/2mass/*
+data/raw/6dfgs/*
+data/raw/sdss/*
+data/scrap/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,9 +1,10 @@
 import os
+import time
 import numpy as np
 import pandas as pd
+from astropy import units as u
 from astropy.io import fits
 from astropy.table import Table
-from astropy import units as u
 from astropy.coordinates import SkyCoord
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
@@ -19,16 +20,6 @@ SDFGS_FP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits
 SDFGS_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/sdfgs_tmass.fits')
 SDFGS_VELDISP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_veldisp_vizier.fits')
 SDFGS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/6dfgs.csv')
-
-# SDSS paths
-SDSS_SPECTRO_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/sdss/SDSS_spectro.csv')
-SDSS_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/sdss_tmass.csv')
-SDSS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv')
-
-# LAMOST paths
-LAMOST_SPECTRO_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/lamost/lamost_DR7_VDcat_20200825.fits')
-LAMOST_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/lamost_tmass.csv')
-LAMOST_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
 
 # SDSS and LAMOST settings and paths
 SDSS_LAMOST_SPECTRO_REQ_COLS = {
@@ -228,11 +219,15 @@ def combine_sdss_lamost_spectrophoto():
 if __name__ == '__main__':
 
     logger.info('Combining 6dFGS data...')
+    start = time.time()
     combine_6df_spectrophoto()
-    logger.info('Combining 6dFGS data successful!')
+    end = time.time()
+    logger.info(f'Combining 6dFGS data successful! Time elapsed = {end-start} s')
 
     logger.info('\n')
     
     logger.info('Combining SDSS and LAMOST data...')
+    start = time.time()
     combine_sdss_lamost_spectrophoto()
-    logger.info('Combining SDSS and LAMOST data successful!')
+    end = time.time()
+    logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {end-start} s')

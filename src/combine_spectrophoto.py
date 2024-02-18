@@ -69,9 +69,8 @@ def combine_6df_spectrophoto():
 
         # Open the 2MASS data
         logger.info('Opening the 2MASS photometry data...')
-        req_cols = ['ra_01', 'dec_01', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
-                    'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'j_mnsurfb_eff', 
-                    'h_r_eff', 'h_mnsurfb_eff', 'k_r_eff', 'k_mnsurfb_eff']
+        req_cols = ['ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
+                    'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'h_r_eff', 'k_r_eff']
         df_2mass = pd.read_csv('data/raw/2mass/sdfgs_tmass.csv')[req_cols]
 
         # Merge FP + 2MASS
@@ -106,8 +105,8 @@ def combine_6df_spectrophoto():
         logger.info('Merging 6dFGS FP+2MASS with 6dFGS veldisp...')
         df = df.merge(df_veldisp, on='_2MASX')
 
-        # Change the primary key nane
-        df = df.rename({'_2MASX': 'tmass'}, axis=1)
+        # Change the primary key and ra dec column name
+        df = df.rename({'_2MASX': 'tmass', 'RAJ2000': 'ra', 'DEJ2000': 'dec'}, axis=1)
         df['tmass'] = '2MASX' + df['tmass']
 
         # Save the resulting table
@@ -172,8 +171,8 @@ def combine_sdss_lamost_spectrophoto():
                 df = df.drop(['ra_01', 'dec_01'], axis=1)
                 
             # Open John's measurements
-            req_cols = ['tmass', 'log_r_h_app_j', 'log_r_h_smodel_j', 'log_r_h_model_j', 'fit_ok_j', 
-                        'log_r_h_app_h', 'log_r_h_smodel_h', 'log_r_h_model_h', 'fit_ok_h', 
+            req_cols = ['tmass', 'log_r_h_app_j', 'log_r_h_smodel_j', 'log_r_h_model_j', 'fit_ok_j', 'red_chi_j',
+                        'log_r_h_app_h', 'log_r_h_smodel_h', 'log_r_h_model_h', 'fit_ok_h',
                         'log_r_h_app_k', 'log_r_h_smodel_k', 'log_r_h_model_k', 'fit_ok_k']
             df_jrl = pd.read_csv(JRL_PHOTO_FILEPATH)[req_cols]
 
@@ -209,6 +208,9 @@ def combine_sdss_lamost_spectrophoto():
             df = df.merge(df_tempel, left_on='tempel_idx', how='left', right_index=True).drop(['tempel_idx', 'RAJ2000', 'DEJ2000'], axis=1)
             logger.info(f'{survey.upper()} galaxies that are part of a cluster: {len(df[df.tempel_counterpart==True])}')
 
+            # Change redshift column name for LAMOST (z_lamost -> z)
+            if survey == 'lamost': df.rename({'z_lamost': 'z'}, axis=1, inplace=True)
+
             # Save the resulting table
             logger.info(f'Number of galaxies = {len(df)}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')
             df.to_csv(SDSS_LAMOST_OUTPUT_FILEPATH[survey], index=False)
@@ -222,7 +224,7 @@ if __name__ == '__main__':
     start = time.time()
     combine_6df_spectrophoto()
     end = time.time()
-    logger.info(f'Combining 6dFGS data successful! Time elapsed = {end-start} s')
+    logger.info(f'Combining 6dFGS data successful! Time elapsed = {round(end-start, 2)} s')
 
     logger.info('\n')
     
@@ -230,4 +232,4 @@ if __name__ == '__main__':
     start = time.time()
     combine_sdss_lamost_spectrophoto()
     end = time.time()
-    logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {end-start} s')
+    logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {round(end-start, 2)} s')

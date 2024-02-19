@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
@@ -6,6 +7,10 @@ from utils.logging_config import get_logger
 from dotenv import load_dotenv
 load_dotenv()
 
+# Create logging instance
+logger = get_logger('get_eq_coords')
+
+# File paths
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SDFGS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits')
 SDSS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/sdss/SDSS_spectro.csv')
@@ -17,10 +22,6 @@ def get_eq_coords():
     These coordinates are fed into the 2MASS XSC to obtain the 2MASS photometry.
     '''
     try:
-                    # Create logging instance
-        logger = get_logger('get_eq_coords')
-        logger.info('Fetching sky coordinates from the raw data sources...')
-
         # 6dFGS galaxies: ra still in hour, so need to convert to degrees
         with fits.open(SDFGS_FILEPATH) as hdul:
             df1 = Table(hdul[1].data).to_pandas()[['RAJ2000', 'DEJ2000']]
@@ -47,7 +48,12 @@ def get_eq_coords():
         logger.error(f'Fetching coordinates failed. Reason: {e}')
 
 def main():
+
+    logger.info('Fetching sky coordinates from the raw data sources...')
+    start = time.time()
     get_eq_coords()
+    end = time.time()
+    logger.info(f'Fetching sky coordinates from the raw data sources successful! Time elapsed: {round(end - start, 2)} s.')
 
 if __name__ == '__main__':
     main()

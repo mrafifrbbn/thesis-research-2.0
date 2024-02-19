@@ -144,8 +144,8 @@ def derive_rsi():
             # Step 7: calculate k-corrections
             logger.info('Calculating K-corrections...')
             z = df['z'].to_numpy()
-            color_J2H2 = (df['j_m_ext'] - df['extinction_j']) - (df['h_m_ext'] - df['extinction_h']).to_numpy()
-            color_J2Ks2 = (df['j_m_ext'] - df['extinction_j']) - (df['k_m_ext'] - df['extinction_k']).to_numpy()
+            color_J2H2 = ((df['j_m_ext'] - df['extinction_j']) - (df['h_m_ext'] - df['extinction_h'])).to_numpy()
+            color_J2Ks2 = ((df['j_m_ext'] - df['extinction_j']) - (df['k_m_ext'] - df['extinction_k'])).to_numpy()
             df['kcor_j'] = calc_kcor('J2', z, 'J2 - H2', color_J2H2)
             df['kcor_h'] = calc_kcor('H2', z, 'J2 - H2', color_J2H2)
             df['kcor_k'] = calc_kcor('Ks2', z, 'J2 - Ks2', color_J2Ks2)
@@ -167,7 +167,7 @@ def derive_rsi():
                 df[f'i_{band}'] = 0.4 * SOLAR_MAGNITUDE[band] - 0.4 * df[f'{band}_m_ext'] - np.log10(2.0 * np.pi) \
                                 - 2.0 * np.log10(circularized_radius) + 4.0 * np.log10(1.0 + df['z']) \
                                 + 0.4 * df[f'kcor_{band}'] + 0.4 * df[f'extinction_{band}'] \
-                                + 2.0 * np.log10(180.0 * 3600.0 / (10.0*np.pi))
+                                + 2.0 * np.log10(180.0 * 3600.0 / (10.0 * np.pi))
 
             # Step 9: derive s
             logger.info('Deriving s...')

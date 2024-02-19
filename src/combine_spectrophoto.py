@@ -218,8 +218,7 @@ def combine_sdss_lamost_spectrophoto():
     except Exception as e:
         logger.error(f"Combining {survey.upper()} spectroscopy and photometry data failed. Reason: {e}")
     
-if __name__ == '__main__':
-
+def main():
     logger.info('Combining 6dFGS data...')
     start = time.time()
     combine_6df_spectrophoto()
@@ -233,3 +232,6 @@ if __name__ == '__main__':
     combine_sdss_lamost_spectrophoto()
     end = time.time()
     logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {round(end-start, 2)} s')
+
+if __name__ == '__main__':
+    main()

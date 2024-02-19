@@ -46,6 +46,9 @@ def get_eq_coords():
     except Exception as e:
         logger.error(f'Fetching coordinates failed. Reason: {e}')
 
-if __name__ == '__main__':
+def main():
     get_eq_coords()
+
+if __name__ == '__main__':
+    main()
 

@@ -161,17 +161,26 @@ def derive_rsi():
                                 + 0.4 * df[f'kcor_{band}'] + 0.4 * df[f'extinction_{band}'] \
                                 + 2.0 * np.log10(180.0 * 3600.0 / (10.0*np.pi))
 
-            # Step 7: derive s
+            # Step 8: derive s
             logger.info('Deriving s...')
             df['s'] = np.log10(df['sigma_corr'])
             df['es'] = (df['e_sigma_corr'] / df['sigma_corr']) / np.log(10)
             
-            # Step 8: save the data
+            # Step 9: save the data
             logger.info(f'Saving the output at {OUTPUT_FILEPATHS[survey]}...')
             df.to_csv(OUTPUT_FILEPATHS[survey],index=False)
     
     except Exception is e:
         logger.error(f'Deriving r, s, i for {survey} failed. Reason: {e}')
 
-if __name__ == '__main__':
+def main():
+
+    logger.info('Deriving r, s, i for the three surveys...')
+    start = time.time()
     derive_rsi()
+    end = time.time()
+    logger.info(f'Deriving r, s, i for the three surveys successful! Time elapsed = {round(end - start, 2)} s')
+
+if __name__ == '__main__':
+    main()
+    

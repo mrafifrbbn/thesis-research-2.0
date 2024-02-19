@@ -105,10 +105,6 @@ def combine_6df_spectrophoto():
         logger.info('Merging 6dFGS FP+2MASS with 6dFGS veldisp...')
         df = df.merge(df_veldisp, on='_2MASX')
 
-        # Change the primary key and ra dec column name
-        df = df.rename({'_2MASX': 'tmass', 'RAJ2000': 'ra', 'DEJ2000': 'dec'}, axis=1)
-        df['tmass'] = '2MASX' + df['tmass']
-
         # Save the resulting table
         logger.info(f'Number of galaxies = {len(df)}. Saving the table to {SDFGS_OUTPUT_FILEPATH}.')
         df.to_csv(SDFGS_OUTPUT_FILEPATH, index=False)
@@ -134,7 +130,6 @@ def combine_sdss_lamost_spectrophoto():
     '''
     try:
         for survey in ['sdss', 'lamost']:
-            
             # Open spectroscopy data
             req_cols = SDSS_LAMOST_SPECTRO_REQ_COLS[survey]
             if survey=='sdss':
@@ -207,9 +202,6 @@ def combine_sdss_lamost_spectrophoto():
             logger.info(f'Joining {survey.upper()} data with Tempel group and cluster data...')
             df = df.merge(df_tempel, left_on='tempel_idx', how='left', right_index=True).drop(['tempel_idx', 'RAJ2000', 'DEJ2000'], axis=1)
             logger.info(f'{survey.upper()} galaxies that are part of a cluster: {len(df[df.tempel_counterpart==True])}')
-
-            # Change redshift column name for LAMOST (z_lamost -> z)
-            if survey == 'lamost': df.rename({'z_lamost': 'z'}, axis=1, inplace=True)
 
             # Save the resulting table
             logger.info(f'Number of galaxies = {len(df)}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')

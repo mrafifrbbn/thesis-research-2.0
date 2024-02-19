@@ -12,6 +12,8 @@ data/raw/2mass/*
 data/raw/6dfgs/*
 data/raw/sdss/*
 data/scrap/*
+data/preprocessed/spectrophoto/*.csv
+data/external/tempel_group_sdss8/*.fits
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

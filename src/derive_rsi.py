@@ -3,22 +3,21 @@ import time
 import numpy as np
 import pandas as pd
 from scipy import interpolate
+from dotenv import load_dotenv
+load_dotenv()
+
+ROOT_PATH = os.environ.get('ROOT_PATH')
 
 from astropy.coordinates import SkyCoord
 from dustmaps.sfd import SFDQuery
 from dustmaps.config import config
-config['data_dir'] = 'etc/dustmaps'
+config['data_dir'] = os.path.join(ROOT_PATH, 'etc/dustmaps')
 
 from utils.constants import *
 from utils.logging_config import get_logger
 from utils.helio_cmb import perform_corr
 from utils.calc_kcor import calc_kcor
 from utils.CosmoFunc import rz_table
-
-from dotenv import load_dotenv
-load_dotenv()
-
-ROOT_PATH = os.environ.get('ROOT_PATH')
 
 # Create logging instance
 logger = get_logger('get_spectrophoto')
@@ -63,7 +62,18 @@ OUTPUT_FILEPATHS = {
 
 def derive_rsi():
     '''
-    A function to derive r, s, i quantities for each galaxy in the three surveys.
+    A function to derive r, s, i quantities for each galaxy in the three surveys. The steps are as follows:
+    0. Extra step only for SDSS and LAMOST (John's selection criteria).
+    1. Rename the columns for uniformity and alter the 2MASS id (so they are in the format 2MASXJ+<id>).
+    2. Derive PSF-corrected radii.
+    3. Calculate CMB frame redshift for individual galaxies (also rederive for 6dFGS).
+    4. Use group/cluster redshift for galaxies in group/cluster.
+    5. Aperture size corrections for the velocity dispersions.
+    6. Calculate Galactic extinctions in the JHK bands.
+    7. Calculate k-corrections.
+    8. Derive r and i.
+    9. Derive s.
+    10. Save the data.
     '''
 
     try:

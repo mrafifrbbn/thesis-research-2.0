@@ -20,7 +20,7 @@ from utils.calc_kcor import calc_kcor
 from utils.CosmoFunc import rz_table
 
 # Create logging instance
-logger = get_logger('get_spectrophoto')
+logger = get_logger('derive_rsi')
 
 # Primary key column names for SDSS and LAMOST
 SURVEY_ID_COL_NAME = {

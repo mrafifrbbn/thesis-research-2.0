@@ -6,16 +6,21 @@ from utils.logging_config import get_logger
 from dotenv import load_dotenv
 load_dotenv()
 
+from utils.constants import *
+
 ROOT_PATH = os.environ.get('ROOT_PATH')
 
 # Create logging instance
 logger = get_logger('veldisp_calibration')
 
 INPUT_FILEPATH = {
-    '6dFGS': 'data/processed/rsi_derived/6dfgs.csv',
-    'SDSS': 'data/processed/rsi_derived/sdss.csv',
-    'LAMOST': 'data/processed/rsi_derived/lamost.csv'
+    '6dFGS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/lamost.csv')
 }
+
+VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
+VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 
 def get_common_galaxies():
     '''
@@ -69,6 +74,9 @@ def get_common_galaxies():
             .merge(data_lamost_veldisp, how='left', on='tmass')
         logger.info(f'Number of unique common galaxies in 6dFGS-SDSS-LAMOST = {len(df)}')
 
+        # Save the dataframe
+        df.to_csv(VELDISP_ORI_OUTPUT_FILEPATH, index=False)
+
         return df
 
     except Exception as e:
@@ -88,7 +96,7 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
         epsilon = (s_sdss - s_lamost) / np.sqrt(es_sdss_scaled**2 + es_lamost_scaled**2)
         
         # Apply sigma clipping before calculating the new error scaling
-        logger.info(f'Applying sigma clipping...')
+        logger.info(f'Applying {sigma_clip} sigma clipping...')
         sigma_clip_filter = np.logical_and(~np.isnan(epsilon), np.absolute(epsilon) < sigma_clip)
         es_sdss_clipped = es_sdss_scaled[sigma_clip_filter]
         es_lamost_clipped = es_lamost_scaled[sigma_clip_filter]
@@ -115,6 +123,129 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
     except Exception as e:
         logger.error(f'Updating scaling for {survey} failed. Reason: {e}.')
 
+def get_offset(df, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
+    '''
+    A function to get the offset in log velocity dispersions (or equivalently scaling in linear velocity dispersions).
+
+    Parameters
+    ----------
+    k_sdss : SDSS error scaling obtained previously.
+    k_lamost : LAMOST error scaling obtained previously.
+    runs : the number of surveys to be compared.
+    cut : during offset calculation, reject galaxies in which the offset is larger than this limit.
+    target : stop the iteration when the maximum offset significance of the three surveys falls below this limit.
+    nboot : the number of simulations. The first simulation is using the actual data, the rest is using Monte Carlo samples.
+    level : minimum significance in which an offset should be applied.
+    max_iter : maximum number of iterations to find the offset.
+    random_seed : random seed number for reproducibility.
+    '''
+    try:
+        # Set random seed
+        np.random.seed(random_seed)
+
+        # Apply the error scalings
+        df['es_sdss'] = df['es_sdss'] * k_sdss
+        df['es_lamost'] = df['es_lamost'] * k_lamost
+
+        # Initial sigmas and error of sigmas
+        isig = df[['s_6df', 's_sdss', 's_lamost']].to_numpy()
+        idsig = df[['es_6df', 'es_sdss', 'es_lamost']].to_numpy()
+
+        # List to store the offset from each simulation
+        totoffs = []
+
+        # Iterate for every bootstrap instance (simulated sigmas)
+        for boot in range(nboot):
+            # For the first simulation, use the measurements directly
+            if (boot == 0):
+                ssig = isig
+                dsig = idsig
+            # Else, use Monte Carlo sample
+            else:
+                ssig = isig + idsig * np.random.normal(size=idsig.shape)
+                dsig = idsig
+            
+            # Reset the total offset at the beginning of each simulation
+            totoff = np.zeros(runs)  # Total offset (scaled to whichever survey picked)
+            iteration = 0
+            maxrat = 999
+            
+            # levels = np.zeros(shape=(max_iter, 3))
+            # Start iterating through each simulation to obtain the offset
+            while ((maxrat >= target) and (iteration < max_iter)):
+                iteration += 1
+                logger.info(f'================== Simulation {boot}. Iteration {iteration}. Offsets = {totoff} ==================')
+
+                # Apply the offset at the beginning of each iteration (why?)
+                sig = ssig - totoff
+                # Set maximum significance as 0
+                maxrat = 0
+                # Number of surveys with significant offset (set as 0)
+                nbig = 0
+                
+                # Calculate the offset for each survey
+                for j, survey in enumerate(SURVEY_LIST):
+                    off = np.zeros(runs)
+                    err = np.zeros(runs)
+                    norms = np.zeros(runs)
+                    rat = np.zeros(runs)
+                    
+                    # Find the list of galaxies with measurements in the target survey
+                    target_survey_filter = ~np.isnan(sig[:, j])
+                    logger.info(f'Number of galaxies in {survey} = {len(target_survey_filter)}.')
+                    
+                    # Calculate for each galaxy
+                    sig_over_dsig = sig / (dsig**2)
+                    one_over_dsig = 1 / (dsig**2)
+                    count_notnan = (~np.isnan(sig)).astype(int)
+                    
+                    # Target survey quantities
+                    x = sig_over_dsig[target_survey_filter, j]
+                    dx = one_over_dsig[target_survey_filter, j]
+                    m = count_notnan[target_survey_filter, j]
+                    
+                    # Other surveys quantities
+                    y = np.nansum(np.delete(sig_over_dsig, j, axis=1), axis=1)[target_survey_filter]
+                    dy = np.nansum(np.delete(one_over_dsig, j, axis=1), axis=1)[target_survey_filter]
+                    n = np.nansum(np.delete(count_notnan, j, axis=1), axis=1)[target_survey_filter]
+
+                    # Calculate for each galaxy again
+                    wt = m * n
+                    x = x / dx
+                    dx = np.sqrt(1 / dx)
+                    y = y / dy
+                    dy = np.sqrt(1 / dy)
+                    diff = x - y
+                    
+                    # Filter galaxies where diff > cut
+                    offset_cut_filter = np.absolute(diff) < cut
+                    off[j] = np.sum((wt * diff)[offset_cut_filter])
+                    err[j] = np.sum((wt**2 * (dx**2 + dy**2))[offset_cut_filter])
+                    norms[j] = np.sum(wt[offset_cut_filter])
+                    
+                    # Determine the offset
+                    off[j] = off[j] / norms[j]
+                    err[j] = np.sqrt(err[j]) / norms[j]
+                    rat[j] = off[j] / err[j]
+                    logger.info(f'Survey = {survey}. N = {int(norms[j])}. Offset = {round(off[j], 3)}. Error = {round(err[j], 3)}. Level = {round(rat[j], 3)}.')
+
+                    absrat = np.absolute(rat[j])
+                    if absrat > maxrat:
+                        maxrat = absrat
+                    if absrat >= target:
+                        nbig += 1
+                    if absrat >= level:
+                        totoff[j] = totoff[j] + off[j]
+                logger.info(f"There are {nbig} significant surveys.")
+            # totoffs.append(totoff - totoff[1])
+
+        # Subtract with the fiducial survey (taken to be SDSS)
+        totoff = totoff - totoff[1]
+
+        return totoff
+    except Exception as e:
+        logger.error(f"Finding velocity dispersion offsets failed. Reason: {e}")
+
 def main():
     logger.info(f'Finding repeat measurements...')
     start = time.time()
@@ -124,7 +255,7 @@ def main():
 
     # Constants
     offset_threshold = 0.2      # Reject measurements that are too different
-    sigma_clip = 3.0            # Sigma clipping threshold
+    sigma_clip = 5.            # Sigma clipping threshold
     k_sdss = 1.0                # Initial scaling for SDSS 
     k_lamost = 1.0              # Initial scaling for LAMOST
     Nmax = 10                   # Maximum iteration
@@ -140,11 +271,12 @@ def main():
 
     # Find the error scalings
     for i in range(Nmax):
-        # Update LAMOST error
-        k_lamost, is_lamost_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'LAMOST', k_sdss, k_lamost, sigma_clip)
-        
+
         # Update SDSS error
         k_sdss, is_sdss_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'SDSS', k_sdss, k_lamost, sigma_clip)
+
+        # Update LAMOST error
+        k_lamost, is_lamost_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'LAMOST', k_sdss, k_lamost, sigma_clip)
         
         logger.info(f'Iteration {i}. SDSS scaling = {round(k_sdss, 3)}. LAMOST scaling = {round(k_lamost, 3)}')
         
@@ -157,6 +289,11 @@ def main():
     logger.info(f"{'='*50}")
     logger.info('Final SDSS scaling = %.3f' % k_sdss)
     logger.info('Final LAMOST scaling = %.3f' % k_lamost)
+
+    logger.info(f"Finding the velocity dispersion offset...")
+    totoff = get_offset(df, k_sdss, k_lamost)
+    logger.info(f"Final 6dFGS offset = {totoff[0]}.")
+    logger.info(f"Final LAMOST offset = {totoff[2]}.")
     
 if __name__ == '__main__':
     main()

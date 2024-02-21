@@ -7,5 +7,6 @@ DUSTMAPS_CONFIG_PATH = os.environ.get('DUSTMAPS_CONFIG_PATH')
 
 config['data_dir'] = DUSTMAPS_CONFIG_PATH
 
-import dustmaps.sfd
-dustmaps.sfd.fetch()
+if __name__ == '__main__':
+    import dustmaps.sfd
+    dustmaps.sfd.fetch()

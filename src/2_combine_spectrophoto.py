@@ -106,7 +106,7 @@ def combine_6df_spectrophoto():
         df = df.merge(df_veldisp, on='_2MASX')
 
         # Save the resulting table
-        logger.info(f'Number of galaxies = {len(df)}. Saving the table to {SDFGS_OUTPUT_FILEPATH}.')
+        logger.info(f"Number of galaxies = {len(df)}. Number of unique galaxies = {df.designation.nunique()}. Saving the table to {SDFGS_OUTPUT_FILEPATH}.")
         df.to_csv(SDFGS_OUTPUT_FILEPATH, index=False)
 
         return
@@ -140,7 +140,7 @@ def combine_sdss_lamost_spectrophoto():
             logger.info(f'Original number of {survey.upper()} galaxies = {len(df_spectro)}')
 
             # Open the 2MASS data
-            req_cols = ['ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
+            req_cols = ['dist_x', 'ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
                         'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'h_r_eff', 'k_r_eff']
             df_2mass = pd.read_csv(SDSS_LAMOST_TMASS_FILEPATH[survey], low_memory=False)[req_cols]
 
@@ -148,6 +148,10 @@ def combine_sdss_lamost_spectrophoto():
             logger.info(f"Merging {survey.upper()} spectroscopy with 2MASS photometry...")
             df = df_spectro.merge(df_2mass, left_index=True, right_index=True)
             df = df.dropna(subset='designation').rename({'designation': 'tmass'}, axis=1)
+            # Drop rows with duplicated 2MASS Id, pick the one with the smaller dist_x
+            df = df.sort_values(by='dist_x', ascending=True)
+            df = df.drop_duplicates(subset='tmass')
+            # Rename 2MASS id column
             df['tmass'] = '2MASXJ' + df['tmass']
             logger.info(f"Remaining {survey.upper()} galaxies = {len(df)}")
 
@@ -189,12 +193,12 @@ def combine_sdss_lamost_spectrophoto():
             df_tempel = df_gal.merge(df_gr, on='IDcl', how='left')
 
             # Crossmatch SDSS/LAMOST data with Tempel data based on individual galaxy RA and DEC
-            coords_mydata = SkyCoord(ra=df['ra'].to_numpy()*u.deg, dec=df['dec'].to_numpy()*u.deg)
-            coords_tempel = SkyCoord(ra=df_tempel['RAJ2000'].to_numpy()*u.deg, dec=df_tempel['DEJ2000'].to_numpy()*u.deg)
+            coords_mydata = SkyCoord(ra=df['ra'].to_numpy() * u.deg, dec=df['dec'].to_numpy() * u.deg)
+            coords_tempel = SkyCoord(ra=df_tempel['RAJ2000'].to_numpy() * u.deg, dec=df_tempel['DEJ2000'].to_numpy() * u.deg)
 
             idx, sep2d, _ = coords_mydata.match_to_catalog_sky(coords_tempel)
             SEP_THRESH = 2.5
-            is_counterpart = sep2d < SEP_THRESH*u.arcsec
+            is_counterpart = sep2d < SEP_THRESH * u.arcsec
 
             df['tempel_idx'] = idx
             df['tempel_counterpart'] = is_counterpart
@@ -204,7 +208,7 @@ def combine_sdss_lamost_spectrophoto():
             logger.info(f'{survey.upper()} galaxies that are part of a cluster: {len(df[df.tempel_counterpart==True])}')
 
             # Save the resulting table
-            logger.info(f'Number of galaxies = {len(df)}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')
+            logger.info(f'Number of galaxies = {len(df)}. Number of unique galaxies = {df.tmass.nunique()}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')
             df.to_csv(SDSS_LAMOST_OUTPUT_FILEPATH[survey], index=False)
 
     except Exception as e:

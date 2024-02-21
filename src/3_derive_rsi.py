@@ -185,7 +185,7 @@ def derive_rsi():
             df['es'] = (df['e_sigma_corr'] / df['sigma_corr']) / np.log(10)
             
             # Step 10: save the data
-            logger.info(f'Saving the output at {OUTPUT_FILEPATHS[survey]}...')
+            logger.info(f'Number of galaxies = {len(df)}. Number of unique galaxies = {df.tmass.nunique()}. Saving the output at {OUTPUT_FILEPATHS[survey]}...')
             df.to_csv(OUTPUT_FILEPATHS[survey],index=False)
     
     except Exception is e:

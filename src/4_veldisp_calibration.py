@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,6 +22,7 @@ INPUT_FILEPATH = {
 
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
+VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
 
 def get_common_galaxies():
     '''
@@ -237,14 +239,47 @@ def get_offset(df, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=
                     if absrat >= level:
                         totoff[j] = totoff[j] + off[j]
                 logger.info(f"There are {nbig} significant surveys.")
-            # totoffs.append(totoff - totoff[1])
+            
+            # Subtract with the fiducial survey (taken to be SDSS)
+            totoff = totoff - totoff[1]
+            totoffs.append(totoff - totoff[1])
 
-        # Subtract with the fiducial survey (taken to be SDSS)
-        totoff = totoff - totoff[1]
-
-        return totoff
+        # Save the totoffs from all simulations
+        df = pd.DataFrame(data=totoffs, columns=['off_6df', 'off_sdss', 'off_lamost'])
+        df.to_csv(VELDISP_TOTOFF_OUTPUT_FILEPATH, index=False)
+        return df
     except Exception as e:
         logger.error(f"Finding velocity dispersion offsets failed. Reason: {e}")
+
+def get_mean_offset(df, nbins=10):
+    '''
+    A function to obtain the mean offset, given the offsets from all the simulations.
+    '''
+    # Define the Gaussian function
+    def gaus(x, xmean, sigma):
+        y = (1 / np.sqrt(2 * np.pi * sigma**2)) * np.exp(-0.5 * ((x - xmean) / sigma)**2)
+        return y
+
+    try:
+        # Obtain 6dFGS mean offset
+        off_6df = df.off_6df.to_numpy()
+        y, x_edges = np.histogram(off_6df, bins=10, density=True)
+        x = (x_edges[1:] + x_edges[:-1]) / 2
+        popt_6df, pcov_6df = curve_fit(gaus, x, y, p0=[np.mean(off_6df), np.std(off_6df)])
+        logger.info(f'6dFGS mean offset = {popt_6df[0]}')
+        logger.info(f'6dFGS offset standard deviation = {popt_6df[1]}')
+
+        # Obtain LAMOST mean offset
+        off_lamost = df.off_lamost.to_numpy()
+        y, x_edges = np.histogram(off_lamost, bins=10, density=True)
+        x = (x_edges[1:] + x_edges[:-1]) / 2
+        popt_lamost, pcov_lamost = curve_fit(gaus, x, y, p0=[np.mean(off_lamost), np.std(off_lamost)])
+        logger.info(f'LAMOST mean offset = {popt_lamost[0]}')
+        logger.info(f'LAMOST offset standard deviation = {popt_lamost[1]}')
+
+        return popt_6df[0], popt_lamost[0]
+    except Exception as e:
+        logger.error(f'Finding the mean offsets failed. Reason: {e}.')
 
 def main():
     logger.info(f'Finding repeat measurements...')
@@ -255,7 +290,7 @@ def main():
 
     # Constants
     offset_threshold = 0.2      # Reject measurements that are too different
-    sigma_clip = 5.            # Sigma clipping threshold
+    sigma_clip = 3.0            # Sigma clipping for each iteration
     k_sdss = 1.0                # Initial scaling for SDSS 
     k_lamost = 1.0              # Initial scaling for LAMOST
     Nmax = 10                   # Maximum iteration
@@ -271,7 +306,6 @@ def main():
 
     # Find the error scalings
     for i in range(Nmax):
-
         # Update SDSS error
         k_sdss, is_sdss_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'SDSS', k_sdss, k_lamost, sigma_clip)
 
@@ -287,13 +321,12 @@ def main():
         logger.info('Maximum number of iterations reached')
 
     logger.info(f"{'='*50}")
-    logger.info('Final SDSS scaling = %.3f' % k_sdss)
-    logger.info('Final LAMOST scaling = %.3f' % k_lamost)
+    logger.info(f'Final SDSS scaling = {round(k_sdss, 3)}')
+    logger.info(f'Final LAMOST scaling = {round(k_lamost, 3)}')
 
     logger.info(f"Finding the velocity dispersion offset...")
-    totoff = get_offset(df, k_sdss, k_lamost)
-    logger.info(f"Final 6dFGS offset = {totoff[0]}.")
-    logger.info(f"Final LAMOST offset = {totoff[2]}.")
+    df = get_offset(df, k_sdss, k_lamost, nboot=100)
+    off_6df, off_lamost = get_mean_offset(df)
     
 if __name__ == '__main__':
     main()

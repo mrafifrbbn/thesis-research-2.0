@@ -2,7 +2,9 @@ import os
 import time
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from scipy.stats import norm
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,6 +25,7 @@ INPUT_FILEPATH = {
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
+VELDISP_COMPARISON_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'img/veldisp_comparison.png')
 
 def get_common_galaxies():
     '''
@@ -125,7 +128,7 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
     except Exception as e:
         logger.error(f'Updating scaling for {survey} failed. Reason: {e}.')
 
-def get_offset(df, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
+def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
     '''
     A function to get the offset in log velocity dispersions (or equivalently scaling in linear velocity dispersions).
 
@@ -144,6 +147,9 @@ def get_offset(df, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=
     try:
         # Set random seed
         np.random.seed(random_seed)
+
+        # Open the data
+        df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
 
         # Apply the error scalings
         df['es_sdss'] = df['es_sdss'] * k_sdss
@@ -251,7 +257,7 @@ def get_offset(df, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=
     except Exception as e:
         logger.error(f"Finding velocity dispersion offsets failed. Reason: {e}")
 
-def get_mean_offset(df, nbins=10):
+def get_mean_offset(totoffs, nbins=10):
     '''
     A function to obtain the mean offset, given the offsets from all the simulations.
     '''
@@ -262,7 +268,7 @@ def get_mean_offset(df, nbins=10):
 
     try:
         # Obtain 6dFGS mean offset
-        off_6df = df.off_6df.to_numpy()
+        off_6df = totoffs.off_6df.to_numpy()
         y, x_edges = np.histogram(off_6df, bins=10, density=True)
         x = (x_edges[1:] + x_edges[:-1]) / 2
         popt_6df, pcov_6df = curve_fit(gaus, x, y, p0=[np.mean(off_6df), np.std(off_6df)])
@@ -270,7 +276,7 @@ def get_mean_offset(df, nbins=10):
         logger.info(f'6dFGS offset standard deviation = {popt_6df[1]}')
 
         # Obtain LAMOST mean offset
-        off_lamost = df.off_lamost.to_numpy()
+        off_lamost = totoffs.off_lamost.to_numpy()
         y, x_edges = np.histogram(off_lamost, bins=10, density=True)
         x = (x_edges[1:] + x_edges[:-1]) / 2
         popt_lamost, pcov_lamost = curve_fit(gaus, x, y, p0=[np.mean(off_lamost), np.std(off_lamost)])
@@ -281,6 +287,73 @@ def get_mean_offset(df, nbins=10):
     except Exception as e:
         logger.error(f'Finding the mean offsets failed. Reason: {e}.')
 
+def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0.):
+    '''
+    A function to generate the chi distributions histogram before vs after applying the calibrations.
+    '''
+    # CONSTANTS
+    BIN_LIST = [20, 100, 15]
+    XLIM_LIST = [(-4, 4), (-8, 8), (-5, 5)]
+    XLABEL_LIST = [r'$\epsilon_\text{6dFGS-SDSS}$', r'$\epsilon_\text{SDSS-LAMOST}$', r'$\epsilon_\text{6dFGS-LAMOST}$']
+
+    logger.info('Generating comparison plot with the following inputs:')
+    logger.info(f'k_6df: {k_6df}')
+    logger.info(f'k_sdss: {k_sdss}')
+    logger.info(f'k_lamost: {k_lamost}')
+    logger.info(f'off_6df: {off_6df}')
+    logger.info(f'off_sdss: {off_sdss}')
+    logger.info(f'off_lamost: {off_lamost}')
+
+    try:
+        df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
+
+        # Apply the offsets
+        df['s_6df_scaled'] = df['s_6df'] - off_6df
+        df['es_6df_scaled'] = df['es_6df']
+        df['s_sdss_scaled'] = df['s_sdss']
+        df['es_sdss_scaled'] = df['es_sdss'] * k_sdss
+        df['s_lamost_scaled'] = df['s_lamost'] - off_lamost
+        df['es_lamost_scaled'] = df['es_lamost'] * k_lamost
+
+        # Calculate the epsilons (without offset)
+        df['epsilon_6df_sdss'] = (df['s_6df'] - df['s_sdss']) / np.sqrt(df['es_6df']**2 + df['es_sdss']**2)
+        df['epsilon_sdss_lamost'] = (df['s_sdss'] - df['s_lamost']) / np.sqrt(df['es_sdss']**2 + df['es_lamost']**2)
+        df['epsilon_6df_lamost'] = (df['s_6df'] - df['s_lamost']) / np.sqrt(df['es_6df']**2 + df['es_lamost']**2)
+        epsilon = df[['epsilon_6df_sdss', 'epsilon_sdss_lamost', 'epsilon_6df_lamost']]
+
+        # Calculate the epsilons (with offset)
+        df['epsilon_6df_sdss_scaled'] = (df['s_6df_scaled'] - df['s_sdss_scaled']) / np.sqrt(df['es_6df_scaled']**2 + df['es_sdss_scaled']**2)
+        df['epsilon_sdss_lamost_scaled'] = (df['s_sdss_scaled'] - df['s_lamost_scaled']) / np.sqrt(df['es_sdss_scaled']**2 + df['es_lamost_scaled']**2)
+        df['epsilon_6df_lamost_scaled'] = (df['s_6df_scaled'] - df['s_lamost_scaled']) / np.sqrt(df['es_6df_scaled']**2 + df['es_lamost_scaled']**2)
+        epsilon_scaled = df[['epsilon_6df_sdss_scaled', 'epsilon_sdss_lamost_scaled', 'epsilon_6df_lamost_scaled']]
+
+        fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(12, 5))
+
+        # Plot before and after scaling + offset
+        for i, ax in enumerate(axs):
+            data = epsilon[epsilon.columns[i]].dropna()
+            ax.hist(data, bins=BIN_LIST[i], density=True, alpha=0.5)
+            
+            data = epsilon_scaled[epsilon_scaled.columns[i]].dropna()
+            ax.hist(data, bins=BIN_LIST[i], density=True, alpha=0.5)
+            
+            # Misc
+            ax.grid(linestyle=":")
+            ax.set_title(f'N = {len(data)}')
+            ax.set_xlim(XLIM_LIST[i])
+            ax.set_xlabel(XLABEL_LIST[i], fontsize=18)
+            
+        # Plot standard normal Gaussians (target)
+        x = np.arange(start=-10., stop=10., step=0.0001)
+        y = norm.pdf(x, loc=0., scale=1.)
+        for ax in axs:
+            ax.plot(x, y, c='k', lw=1.0)
+
+        fig.savefig(VELDISP_COMPARISON_OUTPUT_FILEPATH, dpi=300)
+        return
+    except Exception as e:
+        logger.error(f'Generating comparison plot failed. Reason: {e}.')
+
 def main():
     logger.info(f'Finding repeat measurements...')
     start = time.time()
@@ -290,7 +363,7 @@ def main():
 
     # Constants
     offset_threshold = 0.2      # Reject measurements that are too different
-    sigma_clip = 3.0            # Sigma clipping for each iteration
+    sigma_clip = 5.0            # Sigma clipping for each iteration
     k_sdss = 1.0                # Initial scaling for SDSS 
     k_lamost = 1.0              # Initial scaling for LAMOST
     Nmax = 10                   # Maximum iteration
@@ -308,7 +381,7 @@ def main():
     for i in range(Nmax):
         # Update SDSS error
         k_sdss, is_sdss_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'SDSS', k_sdss, k_lamost, sigma_clip)
-
+        
         # Update LAMOST error
         k_lamost, is_lamost_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'LAMOST', k_sdss, k_lamost, sigma_clip)
         
@@ -325,8 +398,11 @@ def main():
     logger.info(f'Final LAMOST scaling = {round(k_lamost, 3)}')
 
     logger.info(f"Finding the velocity dispersion offset...")
-    df = get_offset(df, k_sdss, k_lamost, nboot=100)
-    off_6df, off_lamost = get_mean_offset(df)
+    totoffs = get_offset(k_sdss, k_lamost, nboot=100)
+    off_6df, off_lamost = get_mean_offset(totoffs)
+
+    logger.info(f"Generating the epsilon comparison plot...")
+    generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost)
     
 if __name__ == '__main__':
     main()

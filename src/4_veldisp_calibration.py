@@ -22,6 +22,12 @@ INPUT_FILEPATH = {
     'LAMOST': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/lamost.csv')
 }
 
+OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/lamost.csv')
+}
+
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
@@ -362,6 +368,19 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
     except Exception as e:
         logger.error(f'Generating comparison plot failed. Reason: {e}.')
 
+def apply_scalings(error_scalings, offsets):
+    '''
+    This function applies the error scalings and velocity dispersion offsets to the data.
+    '''
+    try:
+        for survey in SURVEY_LIST:
+            df = pd.read_csv(INPUT_FILEPATH[survey])
+            df['s_scaled'] = df['s'] - offsets[survey]
+            df['es_scaled'] = df['es'] * error_scalings[survey]
+            df.to_csv(OUTPUT_FILEPATH[survey], index=False)
+    except Exception as e:
+        logger.error(f'Applying scalings failed. Reason: {e}.')
+
 def main():
     logger.info(f'Finding repeat measurements...')
     start = time.time()
@@ -389,7 +408,7 @@ def main():
     for i in range(Nmax):
         # Update SDSS error
         k_sdss, is_sdss_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'SDSS', k_sdss, k_lamost, sigma_clip)
-        
+
         # Update LAMOST error
         k_lamost, is_lamost_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'LAMOST', k_sdss, k_lamost, sigma_clip)
         
@@ -406,11 +425,27 @@ def main():
     logger.info(f'Final LAMOST scaling = {round(k_lamost, 3)}')
 
     logger.info(f"Finding the velocity dispersion offset...")
-    totoffs = get_offset(k_sdss, k_lamost, nboot=1000)
-    off_6df, off_lamost = get_mean_offset(totoffs)
+    totoffs = get_offset(k_sdss, k_lamost, nboot=100)
+    off_6df = totoffs.loc[0, ['off_6df']].values
+    off_lamost = totoffs.loc[0, ['off_lamost']].values
 
     logger.info(f"Generating the epsilon comparison plot...")
     generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=sigma_clip)
     
+    logger.info(f"Applying the scalings...")
+    k_6df = 1.0
+    off_sdss = 0.0
+    error_scalings = {
+        '6dFGS': k_6df,
+        'SDSS': k_sdss,
+        'LAMOST': k_lamost
+    }
+    offsets = {
+        '6dFGS': off_6df,
+        'SDSS': off_sdss,
+        'LAMOST': off_lamost
+    }
+    apply_scalings(error_scalings, offsets)
+
 if __name__ == '__main__':
     main()

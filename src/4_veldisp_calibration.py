@@ -25,7 +25,6 @@ INPUT_FILEPATH = {
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
-VELDISP_COMPARISON_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'img/veldisp_comparison.png')
 
 def get_common_galaxies():
     '''
@@ -182,7 +181,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
             # Start iterating through each simulation to obtain the offset
             while ((maxrat >= target) and (iteration < max_iter)):
                 iteration += 1
-                logger.info(f'================== Simulation {boot}. Iteration {iteration}. Offsets = {totoff} ==================')
+                # logger.info(f'================== Simulation {boot}. Iteration {iteration}. Offsets = {totoff} ==================')
 
                 # Apply the offset at the beginning of each iteration (why?)
                 sig = ssig - totoff
@@ -200,7 +199,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
                     
                     # Find the list of galaxies with measurements in the target survey
                     target_survey_filter = ~np.isnan(sig[:, j])
-                    logger.info(f'Number of galaxies in {survey} = {len(target_survey_filter)}.')
+                    # logger.info(f'Number of galaxies in {survey} = {len(target_survey_filter)}.')
                     
                     # Calculate for each galaxy
                     sig_over_dsig = sig / (dsig**2)
@@ -235,7 +234,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
                     off[j] = off[j] / norms[j]
                     err[j] = np.sqrt(err[j]) / norms[j]
                     rat[j] = off[j] / err[j]
-                    logger.info(f'Survey = {survey}. N = {int(norms[j])}. Offset = {round(off[j], 3)}. Error = {round(err[j], 3)}. Level = {round(rat[j], 3)}.')
+                    # logger.info(f'Survey = {survey}. N = {int(norms[j])}. Offset = {round(off[j], 3)}. Error = {round(err[j], 3)}. Level = {round(rat[j], 3)}.')
 
                     absrat = np.absolute(rat[j])
                     if absrat > maxrat:
@@ -244,7 +243,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
                         nbig += 1
                     if absrat >= level:
                         totoff[j] = totoff[j] + off[j]
-                logger.info(f"There are {nbig} significant surveys.")
+                # logger.info(f"There are {nbig} significant surveys.")
             
             # Subtract with the fiducial survey (taken to be SDSS)
             totoff = totoff - totoff[1]
@@ -287,13 +286,13 @@ def get_mean_offset(totoffs, nbins=10):
     except Exception as e:
         logger.error(f'Finding the mean offsets failed. Reason: {e}.')
 
-def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0.):
+def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0., sigma_clip=5.0):
     '''
     A function to generate the chi distributions histogram before vs after applying the calibrations.
     '''
     # CONSTANTS
-    BIN_LIST = [20, 100, 15]
-    XLIM_LIST = [(-4, 4), (-8, 8), (-5, 5)]
+    BIN_LIST = [20, 40, 15]
+    XLIM_LIST = [(-6, 6), (-6, 6), (-6, 6)]
     XLABEL_LIST = [r'$\epsilon_\text{6dFGS-SDSS}$', r'$\epsilon_\text{SDSS-LAMOST}$', r'$\epsilon_\text{6dFGS-LAMOST}$']
 
     logger.info('Generating comparison plot with the following inputs:')
@@ -309,8 +308,8 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
 
         # Apply the offsets
         df['s_6df_scaled'] = df['s_6df'] - off_6df
-        df['es_6df_scaled'] = df['es_6df']
-        df['s_sdss_scaled'] = df['s_sdss']
+        df['es_6df_scaled'] = df['es_6df'] * k_6df
+        df['s_sdss_scaled'] = df['s_sdss'] - off_sdss
         df['es_sdss_scaled'] = df['es_sdss'] * k_sdss
         df['s_lamost_scaled'] = df['s_lamost'] - off_lamost
         df['es_lamost_scaled'] = df['es_lamost'] * k_lamost
@@ -334,14 +333,18 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
             data = epsilon[epsilon.columns[i]].dropna()
             ax.hist(data, bins=BIN_LIST[i], density=True, alpha=0.5)
             
-            data = epsilon_scaled[epsilon_scaled.columns[i]].dropna()
-            ax.hist(data, bins=BIN_LIST[i], density=True, alpha=0.5)
+            data_scaled = epsilon_scaled[epsilon_scaled.columns[i]].dropna()
+            ax.hist(data_scaled, bins=BIN_LIST[i], density=True, alpha=0.5)
             
             # Misc
             ax.grid(linestyle=":")
             ax.set_title(f'N = {len(data)}')
             ax.set_xlim(XLIM_LIST[i])
             ax.set_xlabel(XLABEL_LIST[i], fontsize=18)
+            ax.set_xticks(ax.get_xticks()[1:-1])
+    
+            if i==0:
+                ax.set_ylabel(r'$N$', fontsize=14)
             
         # Plot standard normal Gaussians (target)
         x = np.arange(start=-10., stop=10., step=0.0001)
@@ -349,7 +352,12 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
         for ax in axs:
             ax.plot(x, y, c='k', lw=1.0)
 
-        fig.savefig(VELDISP_COMPARISON_OUTPUT_FILEPATH, dpi=300)
+        plt.subplots_adjust(wspace=0)
+
+        order = 'sdss_first' if k_sdss > k_lamost else 'lamost_first'
+        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison_{order}_{sigma_clip}sigma.png')
+        logger.info(f'Saving image to {img_output_path}')
+        fig.savefig(img_output_path, dpi=300)
         return
     except Exception as e:
         logger.error(f'Generating comparison plot failed. Reason: {e}.')
@@ -398,11 +406,11 @@ def main():
     logger.info(f'Final LAMOST scaling = {round(k_lamost, 3)}')
 
     logger.info(f"Finding the velocity dispersion offset...")
-    totoffs = get_offset(k_sdss, k_lamost, nboot=100)
+    totoffs = get_offset(k_sdss, k_lamost, nboot=1000)
     off_6df, off_lamost = get_mean_offset(totoffs)
 
     logger.info(f"Generating the epsilon comparison plot...")
-    generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost)
+    generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=sigma_clip)
     
 if __name__ == '__main__':
     main()

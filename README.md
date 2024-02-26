@@ -11,10 +11,13 @@ thesis-research-2.0/
 │   │   ├── lamost/
 │   │   ├── 2mass/
 │   │   └── r_e_jrl/
+│   ├── external/
+│   │   └── tempel_group_sdss8/
 │   ├── preprocessed/
 │   │   ├── sky_coord/
 │   │   └── spectrophoto/
 │   ├── processed/
+│   │   ├── rsi_derived/
 │   │   ├── veldisp_calibrated/
 │   │   ├── zmags_cut/
 │   │   └── etg_selected/
@@ -26,18 +29,20 @@ thesis-research-2.0/
 ├── src/
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   ├── logging_config.py
-│   │   ├── cosmoFunc.py
 │   │   ├── calc_kcor.py
-│   │   └── gal_ext.py
-│   ├── get_coordinates.py
-│   ├── preprocessing.py
-│   ├── processing.py
-│   ├── select_etg.py
-│   └── fit_fp.py
+│   │   ├── constants.py
+│   │   ├── CosmoFunc.py
+│   │   ├── dustmaps_downloader.py
+│   │   ├── helio_cmb.py
+│   │   └── logging_config.py
+│   ├── 1_get_coordinates.py
+│   ├── 2_combine_spectrophoto.py
+│   ├── 3_derive_rsi.py
+│   └── 4_veldisp_calibration.py
 ├── img/
 ├── log/
 ├── requirements.txt
+├── .env.template
 ├── notebook.ipynb
 └── README.md
 ```

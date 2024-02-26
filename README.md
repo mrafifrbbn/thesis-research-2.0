@@ -39,6 +39,9 @@ thesis-research-2.0/
 │   ├── 2_combine_spectrophoto.py
 │   ├── 3_derive_rsi.py
 │   └── 4_veldisp_calibration.py
+├── docs/
+│   ├── catatan.docx
+│   └── Detailed Guide.docx
 ├── img/
 ├── log/
 ├── requirements.txt

@@ -115,18 +115,18 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
         
         # Update the error scaling and check convergence
         N = len(epsilon_clipped)
-        r12 = (1 / N) * np.sum(es_sdss_clipped**2)
-        r32 = (1 / N) * np.sum(es_lamost_clipped**2)
+        rms_sdss = (1 / N) * np.sum(es_sdss_clipped**2)
+        rms_lamost = (1 / N) * np.sum(es_lamost_clipped**2)
         f2 = np.std(epsilon_clipped)**2
         
-        if survey == 'LAMOST':
-            k_new = np.sqrt(f2 + (f2 - 1)*(r12 / r32))
-            k_updated = k_lamost * k_new
-            is_convergent = np.absolute((k_updated - k_lamost) / k_updated) * 100 < convergence_tol
-        elif survey == 'SDSS':
-            k_new = np.sqrt(f2 + (f2 - 1) * (r32 / r12))
+        if survey == 'SDSS':
+            k_new = np.sqrt(f2 + (f2 - 1) * (rms_lamost / rms_sdss))
             k_updated = k_sdss * k_new
             is_convergent = np.absolute((k_updated - k_sdss) / k_updated) * 100 < convergence_tol
+        elif survey == 'LAMOST':
+            k_new = np.sqrt(f2 + (f2 - 1)*(rms_sdss / rms_lamost))
+            k_updated = k_lamost * k_new
+            is_convergent = np.absolute((k_updated - k_lamost) / k_updated) * 100 < convergence_tol
         
         logger.info(f'New scaling for {survey} = {k_updated}.')
         return k_updated, is_convergent
@@ -189,7 +189,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
                 iteration += 1
                 # logger.info(f'================== Simulation {boot}. Iteration {iteration}. Offsets = {totoff} ==================')
 
-                # Apply the offset at the beginning of each iteration (why?)
+                # Apply the offset at the beginning of each iteration
                 sig = ssig - totoff
                 # Set maximum significance as 0
                 maxrat = 0
@@ -426,8 +426,8 @@ def main():
 
     logger.info(f"Finding the velocity dispersion offset...")
     totoffs = get_offset(k_sdss, k_lamost, nboot=100)
-    off_6df = totoffs.loc[0, ['off_6df']].values
-    off_lamost = totoffs.loc[0, ['off_lamost']].values
+    off_6df = totoffs.loc[0, ['off_6df']].values[0]
+    off_lamost = totoffs.loc[0, ['off_lamost']].values[0]
 
     logger.info(f"Generating the epsilon comparison plot...")
     generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=sigma_clip)

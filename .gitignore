@@ -1,3 +1,6 @@
+archive/
+archive/*
+
 *.DS_Store
 *_tmass.csv
 *_log.txt

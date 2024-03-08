@@ -5,23 +5,23 @@ This repo is structured as follows (still updating):
 ```bash
 thesis-research-2.0/
 ├── data/
-│   ├── raw/
+│   ├── raw/                            # Raw data, no modification whatsoever
 │   │   ├── 6dfgs/
 │   │   ├── sdss/
 │   │   ├── lamost/
 │   │   ├── 2mass/
-│   │   └── r_e_jrl/
-│   ├── external/
+│   │   └── r_e_jrl/                    # John's GALFIT measurements
+│   ├── external/                       # External data for complement and consistency checks
 │   │   └── tempel_group_sdss8/
-│   ├── preprocessed/
+│   ├── preprocessed/                   # No data transformation, only aggregation and column selection
 │   │   ├── sky_coord/
 │   │   └── spectrophoto/
-│   ├── processed/
+│   ├── processed/                      # Transformed data are stored here
 │   │   ├── rsi_derived/
 │   │   ├── veldisp_calibrated/
 │   │   ├── zmags_cut/
 │   │   └── etg_selected/
-│   └── foundation/
+│   └── foundation/                     # Data for the main analysis
 │       ├── fp_sample/
 │       ├── pv_sample/
 │       ├── smoothing/
@@ -35,10 +35,11 @@ thesis-research-2.0/
 │   │   ├── dustmaps_downloader.py
 │   │   ├── helio_cmb.py
 │   │   └── logging_config.py
-│   ├── 1_get_coordinates.py
-│   ├── 2_combine_spectrophoto.py
-│   ├── 3_derive_rsi.py
-│   └── 4_veldisp_calibration.py
+│   ├── 1_get_coordinates.py            # Fetch RA & DEC from each survey to be passed to 2MASS
+│   ├── 2_combine_spectrophoto.py       # Combining spectroscopy and photometry measurements
+│   ├── 3_derive_rsi.py                 # Derive FP variables
+│   ├── 4_veldisp_calibration.py        # Calibrate velocity dispersions
+│   └── 5_apply_selection.py            # Apply redshift, magnitude, and veldisp cut
 ├── docs/
 │   ├── catatan.docx
 │   └── Detailed Guide.docx

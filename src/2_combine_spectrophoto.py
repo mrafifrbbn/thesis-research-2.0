@@ -17,26 +17,27 @@ logger = get_logger('get_spectrophoto')
 
 # 6dFGS paths
 SDFGS_FP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits')
-SDFGS_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/sdfgs_tmass.fits')
+SDFGS_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/sdfgs_tmass.csv')
 SDFGS_VELDISP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_veldisp_vizier.fits')
+SDFGS_MAGOULAS_FP_SAMPLE = 'data/external/ETG_sample/fp_magoulas.txt'
 SDFGS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/6dfgs.csv')
 
 # SDSS and LAMOST settings and paths
 SDSS_LAMOST_SPECTRO_REQ_COLS = {
-    'sdss': ['objID', 'ra', 'dec', 'mjd', 'z', 'zErr', 'sigmaStars', 'sigmaStarsErr'],
-    'lamost': ['obsid', 'ra', 'dec', 'z_lamost', 'veldisp', 'veldisp_err']
+    'SDSS': ['objid', 'specObjId', 'RA', 'Dec', 'zhelio', 'zhelioerr', 'SIGMA_STARS', 'SIGMA_STARS_ERR'],
+    'LAMOST': ['obsid', 'ra', 'dec', 'z_lamost', 'veldisp', 'veldisp_err']
 }
 SDSS_LAMOST_SPECTRO_FILEPATH = {
-    'sdss': os.path.join(ROOT_PATH, 'data/raw/sdss/SDSS_spectro.csv'),
-    'lamost': os.path.join(ROOT_PATH, 'data/raw/lamost/lamost_DR7_VDcat_20200825.fits')
+    'SDSS': os.path.join(ROOT_PATH, 'data/raw/sdss/sdss_howlett2022.dat'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/raw/lamost/lamost_DR7_VDcat_20200825.fits')
     }
 SDSS_LAMOST_TMASS_FILEPATH = {
-    'sdss': os.path.join(ROOT_PATH, 'data/raw/2mass/sdss_tmass.csv'),
-    'lamost': os.path.join(ROOT_PATH, 'data/raw/2mass/lamost_tmass.csv')
+    'SDSS': os.path.join(ROOT_PATH, 'data/raw/2mass/sdss_tmass.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/raw/2mass/lamost_tmass.csv')
 }
 SDSS_LAMOST_OUTPUT_FILEPATH = {
-    'sdss': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv'),
-    'lamost': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
+    'SDSS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
 }
 
 # Supplementary data paths
@@ -57,7 +58,6 @@ def combine_6df_spectrophoto():
     7. Join 6dFGS FP-2MASS-veldisp
     8. Save the table to data/preprocessed/spectrophoto
     '''
-
     try:
         # Vizier first table (FP sample)
         logger.info('Opening the 6dFGS FP sample...')
@@ -71,7 +71,7 @@ def combine_6df_spectrophoto():
         logger.info('Opening the 2MASS photometry data...')
         req_cols = ['ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
                     'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'h_r_eff', 'k_r_eff']
-        df_2mass = pd.read_csv('data/raw/2mass/sdfgs_tmass.csv')[req_cols]
+        df_2mass = pd.read_csv(SDFGS_TMASS_FILEPATH)[req_cols]
 
         # Merge FP + 2MASS
         logger.info('Merging 6dFGS FP data with 2MASS data...')
@@ -96,14 +96,24 @@ def combine_6df_spectrophoto():
         req_cols = ['_2MASX', 'MJD', 'z', 'S_N', 'Vd', 'e_Vd']
         with fits.open(SDFGS_VELDISP_FILEPATH) as hdul:
             df_veldisp = Table(hdul[1].data).to_pandas()[req_cols]
-            
+
         ## Drop duplicated rows (select the one with the highest S_N)
         df_veldisp = df_veldisp.sort_values(by='S_N', ascending=False)
         df_veldisp = df_veldisp.drop_duplicates(subset='_2MASX')
 
         # Merge the with the velocity dispersion data
-        logger.info('Merging 6dFGS FP+2MASS with 6dFGS veldisp...')
+        logger.info('Merging the 6dFGS veldisp data...')
         df = df.merge(df_veldisp, on='_2MASX')
+
+        # Select Christina's FP sample (8803 galaxies)
+        logger.info("Opening Christina's FP sample and performing inner join...")
+        df_magoulas = pd.read_csv(SDFGS_MAGOULAS_FP_SAMPLE, delim_whitespace=True)[['#6dFGS_ID']]
+        df_magoulas = df_magoulas.rename({'#6dFGS_ID': '_6dFGS'}, axis=1)
+        df = df.merge(df_magoulas, on='_6dFGS', how='inner')
+
+        # Add prefix '2MASX' to 2MASS id value
+        df['_2MASX'] = '2MASX' + df['_2MASX']
+        df = df.rename({'_2MASX': 'tmass'}, axis=1)
 
         # Save the resulting table
         logger.info(f"Number of galaxies = {len(df)}. Number of unique galaxies = {df.designation.nunique()}. Saving the table to {SDFGS_OUTPUT_FILEPATH}.")
@@ -129,11 +139,11 @@ def combine_sdss_lamost_spectrophoto():
     9. Save the table to data/preprocessed/spectrophoto
     '''
     try:
-        for survey in ['sdss', 'lamost']:
+        for survey in ['SDSS', 'LAMOST']:
             # Open spectroscopy data
             req_cols = SDSS_LAMOST_SPECTRO_REQ_COLS[survey]
-            if survey=='sdss':
-                df_spectro = pd.read_csv(SDSS_LAMOST_SPECTRO_FILEPATH[survey])[req_cols]
+            if survey=='SDSS':
+                df_spectro = pd.read_csv(SDSS_LAMOST_SPECTRO_FILEPATH[survey], delim_whitespace=True)[req_cols]
             else:
                 with fits.open(SDSS_LAMOST_SPECTRO_FILEPATH[survey]) as hdul:
                     df_spectro = Table(hdul[1].data).to_pandas()[req_cols]
@@ -147,7 +157,7 @@ def combine_sdss_lamost_spectrophoto():
             # Merge FP + 2MASS and drop measurements without photometry (designation is null)
             logger.info(f"Merging {survey.upper()} spectroscopy with 2MASS photometry...")
             df = df_spectro.merge(df_2mass, left_index=True, right_index=True)
-            df = df.dropna(subset='designation').rename({'designation': 'tmass'}, axis=1)
+            df = df.dropna(subset='designation').rename({'designation': 'tmass', 'RA': 'ra', 'Dec': 'dec'}, axis=1)
             # Drop rows with duplicated 2MASS Id, pick the one with the smaller dist_x
             df = df.sort_values(by='dist_x', ascending=True)
             df = df.drop_duplicates(subset='tmass')
@@ -168,7 +178,7 @@ def combine_sdss_lamost_spectrophoto():
             else:
                 logger.info(f'The coordinates in {survey.upper()} and 2MASS response are consistent.')
                 df = df.drop(['ra_01', 'dec_01'], axis=1)
-                
+
             # Open John's measurements
             req_cols = ['tmass', 'log_r_h_app_j', 'log_r_h_smodel_j', 'log_r_h_model_j', 'fit_ok_j', 'red_chi_j',
                         'log_r_h_app_h', 'log_r_h_smodel_h', 'log_r_h_model_h', 'fit_ok_h',
@@ -215,6 +225,7 @@ def combine_sdss_lamost_spectrophoto():
         logger.error(f"Combining {survey.upper()} spectroscopy and photometry data failed. Reason: {e}")
     
 def main():
+    logger.info(f"{'='*50}")
     logger.info('Combining 6dFGS data...')
     start = time.time()
     combine_6df_spectrophoto()

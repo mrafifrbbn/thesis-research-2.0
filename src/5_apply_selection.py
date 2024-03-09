@@ -94,6 +94,7 @@ def apply_selection():
             df_low_z = df_low_z.merge(good_pv_list, left_on='tmass', right_on='col1', how='inner').drop(['col1'], axis=1)
             
         # Save the remaining high-redshift galaxies
+        logger.info(f"Final number of galaxies for {survey} = {len(df_high_z)}")
         df_high_z.to_csv(HIGH_Z_OUTPUT_FILEPATH[survey], index=False)
 
         # Save the low-redshift galaxies

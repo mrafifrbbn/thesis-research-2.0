@@ -32,6 +32,8 @@ VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_ca
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
 
+ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only']
+
 def get_common_galaxies():
     '''
     A function to find galaxies with repeat velocity dispersion measurements.
@@ -133,6 +135,7 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
     except Exception as e:
         logger.error(f'Updating scaling for {survey} failed. Reason: {e}.')
 
+# ----------- Find the error scaling using the old method (varying both k_sdss and k_lamost) ----------- #
 def get_error_scaling_old_method(df_repeat, sigma_clip=5.0, max_iter=10, sdss_first=True):
     '''
     A function to obtain the error scaling
@@ -207,6 +210,80 @@ def get_error_scaling_old_method(df_repeat, sigma_clip=5.0, max_iter=10, sdss_fi
         logger.info('Maximum number of iterations reached')        
     return k_sdss, k_lamost
 
+
+# ------------- Finding the error scaling of k_6df and k_lamost by fixing k_sdss = 1 --------------- #
+def get_error_scaling_one_fiducial(df_repeat, sigma_clip=5.0, max_iter=10):
+    '''
+    A function to obtain the error scaling
+    '''
+    def update_error_scaling(s_var, es_var, s_fiducial, es_fiducial, survey, k=1.0, sigma_clip=3.0, convergence_tol=0.005):
+        '''
+        A function to calculate the error scaling for SDSS and LAMOST.
+        '''
+        try:
+            logger.info(f'Updating error scaling for {survey}. Number of galaxies used = {len(s_sdss)}')
+            # Scale the errors
+            es_var_scaled = k * es_var
+
+            # Calculate the pairwise statistics
+            epsilon = (s_var - s_fiducial) / np.sqrt(es_var_scaled**2 + es_fiducial**2)
+
+            # Apply sigma clipping before calculating the new error scaling
+            logger.info(f'Applying {sigma_clip} sigma clipping...')
+            sigma_clip_filter = np.logical_and(~np.isnan(epsilon), np.absolute(epsilon) < sigma_clip)
+            es_var_clipped = es_var_scaled[sigma_clip_filter]
+            es_fiducial_clipped = es_fiducial[sigma_clip_filter]
+            epsilon_clipped = epsilon[sigma_clip_filter]
+            logger.info(f'Number of comparisons remaining = {len(epsilon_clipped)}.')
+
+            # Update the error scaling and check convergence
+            N = len(epsilon_clipped)
+            rms_var = (1 / N) * np.sum(es_var_clipped**2)
+            rms_fiducial = (1 / N) * np.sum(es_fiducial_clipped**2)
+            f2 = np.std(epsilon_clipped)**2
+            k_new = np.sqrt(f2 + (f2 - 1) * (rms_fiducial / rms_var))
+            k_updated = k * k_new
+            is_convergent = np.absolute((k_updated - k) / k_updated) * 100 < convergence_tol
+
+            logger.info(f'New scaling for {survey} = {k_updated}.')
+            return k_updated, is_convergent
+        except Exception as e:
+            logger.info(f'Finding scaling for {survey} failed. Reason: {e}')
+            return k, True
+
+    # SDSS and LAMOST veldisp
+    df_calib = df_repeat
+    s_6df = df_calib['s_6df'].to_numpy()
+    es_6df = df_calib['es_6df'].to_numpy()
+    s_sdss = df_calib['s_sdss'].to_numpy()
+    es_sdss = df_calib['es_sdss'].to_numpy()
+    s_lamost = df_calib['s_lamost'].to_numpy()
+    es_lamost = df_calib['es_lamost'].to_numpy()
+    
+    # Initial scalings for SDSS and LAMOST
+    k_6df = 1.0
+    k_lamost = 1.0
+    
+    # Find the error scalings
+    for i in range(max_iter):
+        # Update LAMOST error 
+        k_lamost, is_lamost_convergent = update_error_scaling(s_lamost, es_lamost, s_sdss, es_sdss, 'LAMOST', k_lamost, sigma_clip)
+        
+        # Update 6dFGS error
+        k_6df, is_6df_convergent = update_error_scaling(s_6df, es_6df, s_sdss, es_sdss, '6dFGS', k_6df, sigma_clip)
+
+        logger.info(f'Iteration {i}. 6dFGS scaling = {round(k_6df, 3)}. LAMOST scaling = {round(k_lamost, 3)}')
+        
+        if (is_lamost_convergent) and (is_6df_convergent):
+            logger.info('Convergence is reached for both error scalings.')
+            break
+    else:
+        logger.info('Maximum number of iterations reached')
+        
+    return k_6df, k_lamost
+
+
+# --------- Find the error scaling only for LAMOST (assume k_sdss = k_6df = 1) ---------- #
 def get_error_scaling_lamost_only(df_repeat, sigma_clip=5.0, max_iter=10):
     '''
     A function to obtain the error scaling
@@ -276,7 +353,7 @@ def get_error_scaling_lamost_only(df_repeat, sigma_clip=5.0, max_iter=10):
         
     return k_lamost_sdss_fid, k_lamost_6df_fid
 
-def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
+def get_offset(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
     '''
     A function to get the offset in log velocity dispersions (or equivalently scaling in linear velocity dispersions).
 
@@ -300,6 +377,7 @@ def get_offset(k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, 
         df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
 
         # Apply the error scalings
+        df['es_6df'] = df['es_6df'] * k_6df
         df['es_sdss'] = df['es_sdss'] * k_sdss
         df['es_lamost'] = df['es_lamost'] * k_lamost
 
@@ -435,7 +513,7 @@ def get_mean_offset(totoffs, nbins=10):
     except Exception as e:
         logger.error(f'Finding the mean offsets failed. Reason: {e}.')
 
-def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0., sigma_clip=5.0):
+def generate_comparison_plot(method, k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0., sigma_clip=5.0):
     '''
     A function to generate the chi distributions histogram before vs after applying the calibrations.
     '''
@@ -445,6 +523,7 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
     XLABEL_LIST = [r'$\epsilon_\text{6dFGS-SDSS}$', r'$\epsilon_\text{SDSS-LAMOST}$', r'$\epsilon_\text{6dFGS-LAMOST}$']
 
     logger.info('Generating comparison plot with the following inputs:')
+    logger.info(f'Method: {method}')
     logger.info(f'k_6df: {k_6df}')
     logger.info(f'k_sdss: {k_sdss}')
     logger.info(f'k_lamost: {k_lamost}')
@@ -489,6 +568,7 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
             ax.grid(linestyle=":")
             ax.set_title(f'N = {len(data)}')
             ax.set_xlim(XLIM_LIST[i])
+            ax.set_ylim(0., 0.65)
             ax.set_xlabel(XLABEL_LIST[i], fontsize=18)
             ax.set_xticks(ax.get_xticks()[1:-1])
     
@@ -503,7 +583,7 @@ def generate_comparison_plot(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., of
 
         plt.subplots_adjust(wspace=0)
 
-        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison_{sigma_clip}sigma.png')
+        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison_{method}_{sigma_clip}sigma.png')
         logger.info(f'Saving image to {img_output_path}')
         plt.tight_layout()
         fig.savefig(img_output_path, dpi=300)
@@ -531,30 +611,39 @@ def main():
     end = time.time()
     logger.info(f'Finding repeat measurements successful! Time elapsed = {round(end - start, 2)} s.')
 
-    # logger.info(f'Finding error scalings using old method (vary k_lamost and k_sdss)')
-    # start = time.time()
-    # k_sdss, k_lamost = get_error_scaling_old_method(df, sigma_clip=3.5)
-    # end = time.time()
-    # logger.info(f'Finding error scalings using old method successful! Time elapsed = {round(end - start, 2)} s.')
-
-    logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS...')
-    start = time.time()
-    k_lamost_sdss_fid, k_lamost_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
-    end = time.time()
-    logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
-
     # Set the errors
     k_6df = 1.0
     k_sdss = 1.0
-    k_lamost = k_lamost_sdss_fid
+    k_lamost = 1.0
+
+    method = ERROR_SCALING_METHODS[2]   # Fill 0, 1, or 2
+    if method == 'old_method':
+        logger.info(f'Finding error scalings using old method (vary k_lamost and k_sdss)')
+        start = time.time()
+        k_sdss, k_lamost = get_error_scaling_old_method(df, sigma_clip=3.5)
+        end = time.time()
+        logger.info(f'Finding error scalings using old method successful! Time elapsed = {round(end - start, 2)} s.')
+    elif method == 'sdss_fiducial':
+        logger.info(f'Finding 6dFGS and LAMOST error scalings by setting SDSS as the fiducial...')
+        start = time.time()
+        k_6df, k_lamost = get_error_scaling_one_fiducial(df, sigma_clip=3.5)
+        end = time.time()
+        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
+    elif method == 'lamost_only':
+        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS...')
+        start = time.time()
+        k_lamost_sdss_fid, k_lamost_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
+        k_lamost = k_lamost_sdss_fid
+        end = time.time()
+        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
 
     logger.info(f"Finding the velocity dispersion offset...")
-    totoffs = get_offset(k_sdss, k_lamost, nboot=100)
+    totoffs = get_offset(k_6df, k_sdss, k_lamost, nboot=100)
     off_6df = totoffs.loc[0, ['off_6df']].values[0]
     off_lamost = totoffs.loc[0, ['off_lamost']].values[0]
 
     logger.info(f"Generating the epsilon comparison plot...")
-    generate_comparison_plot(k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost)
+    generate_comparison_plot(method, k_6df=k_6df, k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=3.5)
     
     logger.info(f"Applying the scalings...")
     off_sdss = 0.0

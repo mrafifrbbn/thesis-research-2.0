@@ -32,7 +32,9 @@ VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_ca
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
 
+# --------------------------- VARIABLE THAT NEEDS TO BE ADJUSTED --------------------------- #
 ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only']
+METHOD_NO = 2       # Fill 0, 1, or 2
 
 def get_common_galaxies():
     '''
@@ -616,7 +618,7 @@ def main():
     k_sdss = 1.0
     k_lamost = 1.0
 
-    method = ERROR_SCALING_METHODS[2]   # Fill 0, 1, or 2
+    method = ERROR_SCALING_METHODS[METHOD_NO]
     if method == 'old_method':
         logger.info(f'Finding error scalings using old method (vary k_lamost and k_sdss)')
         start = time.time()

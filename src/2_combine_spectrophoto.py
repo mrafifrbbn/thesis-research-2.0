@@ -39,6 +39,10 @@ SDSS_LAMOST_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
 }
+SDSS_LAMOST_NOJRL_OUTPUT_FILEPATH = {
+    'SDSS': os.path.join(ROOT_PATH, 'data/preprocessed/no_jrl/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/no_jrl/lamost.csv')
+}
 
 # Supplementary data paths
 JRL_PHOTO_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/jhk_r_e.csv')
@@ -185,6 +189,11 @@ def combine_sdss_lamost_spectrophoto():
                         'log_r_h_app_k', 'log_r_h_smodel_k', 'log_r_h_model_k', 'fit_ok_k']
             df_jrl = pd.read_csv(JRL_PHOTO_FILEPATH)[req_cols]
 
+            # Find galaxies without John's measurements
+            df_nomeasure = pd.merge(df, df_jrl, how='left', on='tmass', indicator=True).query('_merge == "left_only"')[['tmass']]
+            if len(df_nomeasure):
+                logger.info(f'Number of {survey.upper()} galaxies without Johns measurements = {len(df_nomeasure)}')
+                df_nomeasure.to_csv(SDSS_LAMOST_NOJRL_OUTPUT_FILEPATH[survey], index=False)
             # Merge SDSS_Spectro+2MASS and JRL photometry
             logger.info(f"Merging {survey.upper()}+2MASS with JRL photometry...")
             df = df.merge(df_jrl, on='tmass')

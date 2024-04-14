@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
+USE_6dFGS_OFFSET = True if os.environ.get('USE_6dFGS_OFFSET').lower() == 'true' else False
 
 # Create logging instance
 logger = get_logger('zms_cut')
@@ -26,17 +27,31 @@ REQ_COLS = {
     'LAMOST': ['tmass', 'obsid'] + GLOBAL_REQ_COL
 }
 
-INPUT_FILEPATH = {
-    '6dFGS': 'data/processed/zms_cut/6dfgs.csv',
-    'SDSS': 'data/processed/zms_cut/sdss.csv',
-    'LAMOST': 'data/processed/zms_cut/lamost.csv'
-}
+if not USE_6dFGS_OFFSET:
+    INPUT_FILEPATH = {
+        '6dFGS': 'data/processed/zms_cut/6dfgs.csv',
+        'SDSS': 'data/processed/zms_cut/sdss.csv',
+        'LAMOST': 'data/processed/zms_cut/lamost.csv'
+    }
+else:
+    INPUT_FILEPATH = {
+        '6dFGS': 'data/processed/zms_cut/use_offset/6dfgs.csv',
+        'SDSS': 'data/processed/zms_cut/use_offset/sdss.csv',
+        'LAMOST': 'data/processed/zms_cut/use_offset/lamost.csv'
+    }
 
-OUTPUT_FILEPATH = {
-    '6dFGS': 'data/foundation/fp_sample/6dfgs.csv',
-    'SDSS': 'data/foundation/fp_sample/sdss.csv',
-    'LAMOST': 'data/foundation/fp_sample/lamost.csv'
-}
+if not USE_6dFGS_OFFSET:
+    OUTPUT_FILEPATH = {
+        '6dFGS': 'data/foundation/fp_sample/6dfgs.csv',
+        'SDSS': 'data/foundation/fp_sample/sdss.csv',
+        'LAMOST': 'data/foundation/fp_sample/lamost.csv'
+    }
+else:
+    OUTPUT_FILEPATH = {
+        '6dFGS': 'data/foundation/fp_sample/use_offset/6dfgs.csv',
+        'SDSS': 'data/foundation/fp_sample/use_offset/sdss.csv',
+        'LAMOST': 'data/foundation/fp_sample/use_offset/lamost.csv'
+    }
 
 # Piecewise linear function
 def piecewise_linear(x, x0, y0, k):

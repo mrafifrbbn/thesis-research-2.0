@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
+USE_6dFGS_OFFSET = True if os.environ.get('USE_6dFGS_OFFSET').lower() == 'true' else False
 
 # Create logging instance
 logger = get_logger('zms_cut')
@@ -18,23 +19,33 @@ INPUT_FILEPATH = {
     'LAMOST': os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/lamost.csv')
 }
 
-HIGH_Z_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/lamost.csv')
-}
-
 LOW_Z_OUTPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/low_z/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/low_z/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/low_z/lamost.csv')
 }
 
+if not USE_6dFGS_OFFSET:
+    HIGH_Z_OUTPUT_FILEPATH = {
+        '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/6dfgs.csv'),
+        'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/sdss.csv'),
+        'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/lamost.csv')
+    }
+else:
+    HIGH_Z_OUTPUT_FILEPATH = {
+        '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/6dfgs.csv'),
+        'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/sdss.csv'),
+        'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/lamost.csv')
+    }
+
 LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/lamost_good_pv_list.csv')
 
 # Grab 6dFGS offset
-totoff = pd.read_csv(os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv'))
-off_6df = 0.0 # totoff.loc[0, ['off_6df']].values[0]
+totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
+if not USE_6dFGS_OFFSET:
+    off_6df = 0.0
+else:
+    off_6df = totoff.loc[0, ['off_6df']].values[0]
 
 # Selection criteria constants
 UPPER_Z_LIMIT = 16120.0 / LIGHTSPEED
@@ -54,7 +65,7 @@ def apply_selection():
         logger.info(f"Original number of galaxies in {survey}: {old_count}")
 
         # Bypass all of the selection for 6dFGS (keep all of Christina's galaxies)
-        if survey == '6dFGS':
+        if (survey == '6dFGS') and not USE_6dFGS_OFFSET:
             logger.info(f"Keeping all 6dFGS galaxies...")
             df.to_csv(HIGH_Z_OUTPUT_FILEPATH[survey], index=False)
             continue
@@ -106,7 +117,10 @@ def apply_selection():
 def main():
     try:
         logger.info(f"{'=' * 50}")
-        logger.info('Applying selection criteria...')
+        if not USE_6dFGS_OFFSET:
+            logger.info('Applying selection criteria (not using 6dFGS offset as s_cut)...')
+        else:
+            logger.info('Applying selection criteria (using 6dFGS offset as s_cut)...')
         start = time.time()
         apply_selection()
         end = time.time()

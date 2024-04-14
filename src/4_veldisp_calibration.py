@@ -30,7 +30,7 @@ OUTPUT_FILEPATH = {
 
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
 VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
-VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/totoffs.csv')
+VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv')
 
 # --------------------------- VARIABLE THAT NEEDS TO BE ADJUSTED --------------------------- #
 ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only']

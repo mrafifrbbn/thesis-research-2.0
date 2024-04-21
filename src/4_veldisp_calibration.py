@@ -520,7 +520,7 @@ def generate_comparison_plot(method, k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6d
     A function to generate the chi distributions histogram before vs after applying the calibrations.
     '''
     # CONSTANTS
-    BIN_LIST = [5, 40, 9]
+    BIN_LIST = [4, 40, 10]
     XLIM_LIST = [(-6, 6), (-6, 6), (-6, 6)]
     XLABEL_LIST = [r'$\epsilon_\text{6dFGS-SDSS}$', r'$\epsilon_\text{SDSS-LAMOST}$', r'$\epsilon_\text{6dFGS-LAMOST}$']
 
@@ -585,7 +585,7 @@ def generate_comparison_plot(method, k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6d
 
         plt.subplots_adjust(wspace=0)
 
-        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison_{method}_{sigma_clip}sigma.png')
+        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison.png')
         logger.info(f'Saving image to {img_output_path}')
         plt.tight_layout()
         fig.savefig(img_output_path, dpi=300)

@@ -19,7 +19,7 @@ logger = get_logger('get_spectrophoto')
 SDFGS_FP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits')
 SDFGS_TMASS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/2mass/sdfgs_tmass.csv')
 SDFGS_VELDISP_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_veldisp_vizier.fits')
-SDFGS_MAGOULAS_FP_SAMPLE = 'data/external/ETG_sample/fp_magoulas.txt'
+SDFGS_KHALED_FP_SAMPLE = os.path.join(ROOT_PATH, 'data/external/ETG_sample/6df_khaled.txt')
 SDFGS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/6dfgs.csv')
 
 # SDSS and LAMOST settings and paths
@@ -109,11 +109,11 @@ def combine_6df_spectrophoto():
         logger.info('Merging the 6dFGS veldisp data...')
         df = df.merge(df_veldisp, on='_2MASX')
 
-        # Select Christina's FP sample (8803 galaxies)
-        logger.info("Opening Christina's FP sample and performing inner join...")
-        df_magoulas = pd.read_csv(SDFGS_MAGOULAS_FP_SAMPLE, delim_whitespace=True)[['#6dFGS_ID']]
-        df_magoulas = df_magoulas.rename({'#6dFGS_ID': '_6dFGS'}, axis=1)
-        df = df.merge(df_magoulas, on='_6dFGS', how='inner')
+        # Select Khaled's FP sample (7030 galaxies)
+        logger.info("Opening Khaled's FP sample and performing inner join...")
+        df_khaled = pd.read_csv(SDFGS_KHALED_FP_SAMPLE, delim_whitespace=True)[['#objid']]
+        df_khaled = df_khaled.rename({'#objid': '_6dFGS'}, axis=1)
+        df = df.merge(df_khaled, on='_6dFGS', how='inner')
 
         # Add prefix '2MASX' to 2MASS id value
         df['_2MASX'] = '2MASX' + df['_2MASX']

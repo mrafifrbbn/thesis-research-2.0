@@ -13,6 +13,8 @@ docs/~$*
 etc/
 etc/*
 
+experiments.ipynb
+
 data/raw/2mass/*
 data/raw/6dfgs/*
 data/raw/sdss/*

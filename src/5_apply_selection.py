@@ -2,13 +2,14 @@ import os
 import time
 import numpy as np
 import pandas as pd
+
 from utils.constants import *
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
-USE_6dFGS_OFFSET = True if os.environ.get('USE_6dFGS_OFFSET').lower() == 'true' else False
+SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 
 # Create logging instance
 logger = get_logger('zms_cut')
@@ -24,34 +25,44 @@ LOW_Z_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/low_z/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/low_z/lamost.csv')
 }
+create_parent_folder(LOW_Z_OUTPUT_FILEPATH)
 
-if not USE_6dFGS_OFFSET:
-    HIGH_Z_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/lamost.csv')
-    }
+HIGH_Z_OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
+create_parent_folder(HIGH_Z_OUTPUT_FILEPATH)
+
+# Grab veldisp offsets
+totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
+off_6df = totoff.loc[0, ['off_6df']].values[0]
+off_sdss = totoff.loc[0, ['off_sdss']].values[0]
+off_lamost = totoff.loc[0, ['off_lamost']].values[0]
+
+# Define the veldisp lower limit (as defined in the guide)
+## Default: use nominal veldisp limit + offset of each survey
+if SMIN_SETTING == 0:
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] -= off_sdss
+    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
+## First setting: use 6dFGS veldisp + offset for everything
+elif SMIN_SETTING == 1:
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
+    SURVEY_VELDISP_LIMIT['LAMOST'] = SURVEY_VELDISP_LIMIT['6dFGS']
+## Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
 else:
-    HIGH_Z_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/processed/zms_cut/use_offset/lamost.csv')
-    }
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
+    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
 
 LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/lamost_good_pv_list.csv')
-
-# Grab 6dFGS offset
-totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
-if not USE_6dFGS_OFFSET:
-    off_6df = 0.0
-else:
-    off_6df = totoff.loc[0, ['off_6df']].values[0]
 
 # Selection criteria constants
 UPPER_Z_LIMIT = 16120.0 / LIGHTSPEED
 LOWER_Z_LIMIT = 3000.0 / LIGHTSPEED
 UPPER_MAG_LIMIT = 13.65
-LOWER_VELDISP_LIMIT = np.log10(112) - off_6df
 
 def apply_selection():
     '''
@@ -64,11 +75,11 @@ def apply_selection():
         old_count = len(df)
         logger.info(f"Original number of galaxies in {survey}: {old_count}")
 
-        # Bypass all of the selection for 6dFGS (keep all of Christina's galaxies)
-        if (survey == '6dFGS') and not USE_6dFGS_OFFSET:
-            logger.info(f"Keeping all 6dFGS galaxies...")
-            df.to_csv(HIGH_Z_OUTPUT_FILEPATH[survey], index=False)
-            continue
+        # # Bypass all of the selection for 6dFGS (keep all of Christina's galaxies)
+        # if (survey == '6dFGS') and not USE_6dFGS_OFFSET:
+        #     logger.info(f"Keeping all 6dFGS galaxies...")
+        #     df.to_csv(HIGH_Z_OUTPUT_FILEPATH[survey], index=False)
+        #     continue
 
         # 1. Apply upper CMB redshift limit
         df = df[df['z_dist_est'] <= UPPER_Z_LIMIT]
@@ -88,14 +99,14 @@ def apply_selection():
         logger.info(f"Number of galaxies after (m_j - extinction_j) <= 13.65 = {new_count} | Discarded galaxies = {old_count - new_count}")
         old_count = new_count
 
-        # 4. Apply upper veldisp limit
-        df_high_z = df_high_z[df_high_z['s_scaled'] >= LOWER_VELDISP_LIMIT]
+        # 4. Apply lower veldisp limit
+        df_high_z = df_high_z[df_high_z['s_scaled'] >= SURVEY_VELDISP_LIMIT[survey]]
         new_count = len(df_high_z)
-        logger.info(f"Number of galaxies after s_scaled >= log10(112) - 6dFGS_offset ({round(off_6df, 3)}) = {new_count} | Discarded galaxies = {old_count - new_count}")
+        logger.info(f"Number of galaxies after s_scaled >= {SURVEY_VELDISP_LIMIT[survey]} = {new_count} | Discarded galaxies = {old_count - new_count}")
         old_count = new_count
 
         # 5. Select the low-redshift galaxies (will not be used to fit the FP due to high scatter but PVs will still be measured)
-        df_low_z = df[(df['z_dist_est'] <= LOWER_Z_LIMIT) & ((df['j_m_ext'] - df['extinction_j']) <= UPPER_MAG_LIMIT) & (df['s_scaled'] >= LOWER_VELDISP_LIMIT)]
+        df_low_z = df[(df['z_dist_est'] <= LOWER_Z_LIMIT) & ((df['j_m_ext'] - df['extinction_j']) <= UPPER_MAG_LIMIT) & (df['s_scaled'] >= SURVEY_VELDISP_LIMIT[survey])]
 
         # 6. For LAMOST, select galaxies classified as ETG from John's visual inspections
         if survey == 'LAMOST':
@@ -111,16 +122,13 @@ def apply_selection():
         # Save the low-redshift galaxies
         logger.info(f"Number of galaxies with cz <= 3000 = {len(df_low_z)}")
         df_low_z.to_csv(LOW_Z_OUTPUT_FILEPATH[survey], index=False)
-
         logger.info('\n')
 
 def main():
     try:
         logger.info(f"{'=' * 50}")
-        if not USE_6dFGS_OFFSET:
-            logger.info('Applying selection criteria (not using 6dFGS offset as s_cut)...')
-        else:
-            logger.info('Applying selection criteria (using 6dFGS offset as s_cut)...')
+        logger.info(f'Applying selection criteria using SMIN_SETTING {SMIN_SETTING}...')
+        logger.info(SURVEY_VELDISP_LIMIT)
         start = time.time()
         apply_selection()
         end = time.time()

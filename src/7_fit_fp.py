@@ -20,79 +20,70 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
-USE_6dFGS_OFFSET = True if os.environ.get('USE_6dFGS_OFFSET').lower() == 'true' else False
+SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 
 # Create logging instance
 logger = get_logger('fit_fp')
 
-if not USE_6dFGS_OFFSET:
-    INPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/lamost.csv')
-    }
-
-    OUTLIER_REJECT_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/lamost.csv')
-    }
-
-    FP_FIT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/fp_fit/fp_fits.csv')
-
-    MCMC_CHAIN_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'artifacts/fp_fit/6dfgs_chain.npy'),
-        'SDSS': os.path.join(ROOT_PATH, 'artifacts/fp_fit/sdss_chain.npy'),
-        'LAMOST': os.path.join(ROOT_PATH, 'artifacts/fp_fit/lamost_chain.npy')
-    }
-
-    LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, 'img/fp_fit/three_surveys_likelihood.png')
-
-    LIKELIHOOD_DIST_IMG_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'img/fp_fit/6dfgs.png'),
-        'SDSS': os.path.join(ROOT_PATH, 'img/fp_fit/sdss.png'),
-        'LAMOST': os.path.join(ROOT_PATH, 'img/fp_fit/lamost.png')
-    }
-else:
-    INPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/use_offset/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/use_offset/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/use_offset/lamost.csv')
-    }
-
-    OUTLIER_REJECT_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/use_offset/6dfgs.csv'),
-        'SDSS': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/use_offset/sdss.csv'),
-        'LAMOST': os.path.join(ROOT_PATH, 'data/foundation/fp_sample/outlier_reject/use_offset/lamost.csv')
-    }
-
-    FP_FIT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/fp_fit/use_offset/fp_fits.csv')
-
-    MCMC_CHAIN_OUTPUT_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'artifacts/fp_fit/use_offset/6dfgs_chain.npy'),
-        'SDSS': os.path.join(ROOT_PATH, 'artifacts/fp_fit/use_offset/sdss_chain.npy'),
-        'LAMOST': os.path.join(ROOT_PATH, 'artifacts/fp_fit/use_offset/lamost_chain.npy')
-    }
-
-    LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, 'img/fp_fit/use_offset/three_surveys_likelihood.png')
-
-    LIKELIHOOD_DIST_IMG_FILEPATH = {
-        '6dFGS': os.path.join(ROOT_PATH, 'img/fp_fit/use_offset/6dfgs.png'),
-        'SDSS': os.path.join(ROOT_PATH, 'img/fp_fit/use_offset/sdss.png'),
-        'LAMOST': os.path.join(ROOT_PATH, 'img/fp_fit/use_offset/lamost.png')
-    }
-
-# Grab 6dFGS offset
+# Grab veldisp offsets
 totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
-if not USE_6dFGS_OFFSET:
-    off_6df = 0.0
+off_6df = totoff.loc[0, ['off_6df']].values[0]
+off_sdss = totoff.loc[0, ['off_sdss']].values[0]
+off_lamost = totoff.loc[0, ['off_lamost']].values[0]
+
+# Define the veldisp lower limit (as defined in the guide)
+## Default: use nominal veldisp limit + offset of each survey
+if SMIN_SETTING == 0:
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] -= off_sdss
+    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
+## First setting: use 6dFGS veldisp + offset for everything
+elif SMIN_SETTING == 1:
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
+    SURVEY_VELDISP_LIMIT['LAMOST'] = SURVEY_VELDISP_LIMIT['6dFGS']
+## Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
 else:
-    off_6df = totoff.loc[0, ['off_6df']].values[0]
+    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
+    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
+    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
+
+INPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
+
+OUTLIER_REJECT_OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
+create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
+
+FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
+create_parent_folder(FP_FIT_FILEPATH)
+
+MCMC_CHAIN_OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_chain.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy')
+}
+create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
+
+LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/three_surveys_likelihood.png')
+create_parent_folder(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH)
+
+LIKELIHOOD_DIST_IMG_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png')
+}
 
 # Sample selection constants
 # The magnitude limit and velocity dispersion limits (very important!), and Omega_m (less important)
 omega_m = 0.3121
-smin = np.log10(112) - off_6df
+# smin = np.log10(112) - off_6df
 mag_low = 8.0
 mag_high = 13.65
 zmin = 3000.0 / LIGHTSPEED
@@ -231,6 +222,9 @@ def fit_FP():
         # p-value upper limit, reject galaxies with p-value lower than this limit
         pvals_cut = 0.01
 
+        # Velocity dispersion lower limit
+        smin = SURVEY_VELDISP_LIMIT[survey]
+
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
         # The comoving distance to each galaxy using group redshift as distance indicator
@@ -260,7 +254,7 @@ def fit_FP():
             Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
 
             # The range of the FP parameters' values
-            avals, bvals = (1.3, 1.8), (-1.0, -0.5)
+            avals, bvals = (1.0, 1.8), (-1.0, -0.5)
             rvals, svals, ivals = (-0.5, 0.5), (2.0, 2.5), (3.0, 3.5)
             s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.1, 0.3)
 
@@ -346,6 +340,9 @@ def sample_likelihood():
         mag_j = df['j_m_ext'].to_numpy()
         A_j = df['extinction_j'].to_numpy()
 
+        # Velocity dispersion lower limit
+        smin = SURVEY_VELDISP_LIMIT[survey]
+
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
         # The comoving distance to each galaxy using group redshift as distance indicator
@@ -368,7 +365,7 @@ def sample_likelihood():
         nwalkers, ndim = pos.shape
 
         # Flat prior boundaries (same order as FP_params)
-        param_boundaries = [(1.3, 1.8), (-1.0, -0.5), (-0.5, 0.5), (1.8, 2.5), (2.8, 3.5), (0.0, 0.3), (0.1, 0.5), (0.1, 0.3)]
+        param_boundaries = [(1.0, 1.8), (-1.0, -0.5), (-0.5, 0.5), (1.8, 2.5), (2.8, 3.5), (0.0, 0.3), (0.1, 0.5), (0.1, 0.3)]
 
         # Run the MCMC
         sampler = emcee.EnsembleSampler(
@@ -477,20 +474,20 @@ def fit_likelihood():
 
 def main():
     try:
-        logger.info({f'{"=" * 20}'})
-        logger.info(f'Fitting the Fundamental Plane...')
+        logger.info(f'{"=" * 50}')
+        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')
         logger.info(f'Sample selection constants:')
         logger.info(f'omega_m = {omega_m}')
-        logger.info(f'smin = {smin}')
+        logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
         logger.info(f'mag_low = {mag_low}')
         logger.info(f'mag_high = {mag_high}')
         logger.info(f'zmin = {zmin}')
         logger.info(f'zmax = {zmax}')
-        # fit_FP()
+        fit_FP()
         
-        # sample_likelihood()
+        sample_likelihood()
         
-        # generate_corner_plot()
+        generate_corner_plot()
 
         fit_likelihood()
 

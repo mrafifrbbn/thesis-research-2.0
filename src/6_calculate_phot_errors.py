@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
-USE_6dFGS_OFFSET = True if os.environ.get('USE_6dFGS_OFFSET').lower() == 'true' else False
+SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 
 # Create logging instance
 logger = get_logger('zms_cut')
@@ -27,31 +27,20 @@ REQ_COLS = {
     'LAMOST': ['tmass', 'obsid'] + GLOBAL_REQ_COL
 }
 
-if not USE_6dFGS_OFFSET:
-    INPUT_FILEPATH = {
-        '6dFGS': 'data/processed/zms_cut/6dfgs.csv',
-        'SDSS': 'data/processed/zms_cut/sdss.csv',
-        'LAMOST': 'data/processed/zms_cut/lamost.csv'
-    }
-else:
-    INPUT_FILEPATH = {
-        '6dFGS': 'data/processed/zms_cut/use_offset/6dfgs.csv',
-        'SDSS': 'data/processed/zms_cut/use_offset/sdss.csv',
-        'LAMOST': 'data/processed/zms_cut/use_offset/lamost.csv'
-    }
+INPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
 
-if not USE_6dFGS_OFFSET:
-    OUTPUT_FILEPATH = {
-        '6dFGS': 'data/foundation/fp_sample/6dfgs.csv',
-        'SDSS': 'data/foundation/fp_sample/sdss.csv',
-        'LAMOST': 'data/foundation/fp_sample/lamost.csv'
-    }
-else:
-    OUTPUT_FILEPATH = {
-        '6dFGS': 'data/foundation/fp_sample/use_offset/6dfgs.csv',
-        'SDSS': 'data/foundation/fp_sample/use_offset/sdss.csv',
-        'LAMOST': 'data/foundation/fp_sample/use_offset/lamost.csv'
-    }
+OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
+create_parent_folder(OUTPUT_FILEPATH)
+
+IMG_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'img/phot_error/smin_setting_{SMIN_SETTING}.png')
 
 # Piecewise linear function
 def piecewise_linear(x, x0, y0, k):
@@ -149,8 +138,7 @@ def derive_phot_error():
     ax.tick_params(axis='both', which='major', labelsize=10)
     ax.grid(ls=':', alpha=0.5)
     plt.tight_layout()
-    img_output_path = os.path.join(ROOT_PATH, f'img/phot_error.png')
-    fig.savefig(img_output_path, dpi=300)
+    fig.savefig(IMG_OUTPUT_FILEPATH, dpi=300)
     
     return popt
     

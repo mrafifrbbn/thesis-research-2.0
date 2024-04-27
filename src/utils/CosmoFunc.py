@@ -161,3 +161,122 @@ def rz_table(redmax = 1.0, nlookbins=400, om=0.3121):
     ez_spline = interpolate.splrep(red, ez, s=0)
 
     return red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline
+
+    # The likelihood function for the Fundamental Plane
+def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, dz, kr, Ar, smin, sumgals=True, chi_squared_only=False):
+
+    # Trial FP parameters
+    a, b, rmean, smean, imean, sigma1, sigma2, sigma3 = params 
+    # The additional parameter assumed to be zero
+    k = 0.0
+
+    # These are the components of the eigenvectors and their magnitudes
+    fac1, fac2, fac3, fac4 = k*a**2 + k*b**2 - a, k*a - 1.0 - b**2, b*(k+a), 1.0 - k*a
+    norm1, norm2 = 1.0+a**2+b**2, 1.0+b**2+k**2*(a**2+b**2)-2.0*a*k
+    # The components of the scatter matrix
+    dsigma31, dsigma23 = sigma3**2-sigma1**2, sigma2**2-sigma3**3
+    sigmar2 =  1.0/norm1*sigma1**2 +      b**2/norm2*sigma2**2 + fac1**2/(norm1*norm2)*sigma3**2
+    sigmas2 = a**2/norm1*sigma1**2 + k**2*b**2/norm2*sigma2**2 + fac2**2/(norm1*norm2)*sigma3**2
+    sigmai2 = b**2/norm1*sigma1**2 +   fac4**2/norm2*sigma2**2 + fac3**2/(norm1*norm2)*sigma3**2
+    sigmars =  -a/norm1*sigma1**2 -   k*b**2/norm2*sigma2**2 + fac1*fac2/(norm1*norm2)*sigma3**2
+    sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
+    sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
+    sigma_cov = np.array([[sigmar2, sigmars, sigmari], [sigmars, sigmas2, sigmasi], [sigmari, sigmasi, sigmai2]])
+
+    # Compute the chi-squared and determinant (quickly!)
+    # The component of the covariance matrix
+    cov_r = err_r**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*z_obs))**2 + sigmar2
+    cov_s = err_s**2 + sigmas2
+    cov_i = err_i**2 + sigmai2
+    cov_ri = -1.0*err_r*err_i + sigmari
+
+    # Minors of the covariance matrix
+    A = cov_s*cov_i - sigmasi**2
+    B = sigmasi*cov_ri - sigmars*cov_i
+    C = sigmars*sigmasi - cov_s*cov_ri
+    E = cov_r*cov_i - cov_ri**2
+    F = sigmars*cov_ri - cov_r*sigmasi
+    I = cov_r*cov_s - sigmars**2
+
+    # Using the mean values rbar, sbar, ibar as the center
+    sdiff, idiff = s - smean, i - imean
+    rnew = r - np.tile(logdists, (len(r), 1)).T
+    rdiff  = rnew - rmean
+
+    # Determinant of the covariance matrix
+    det = cov_r*A + sigmars*B + cov_ri*C
+    log_det = np.log(det)/Sn
+
+    # The chi-squared term of the likelihood function
+    chi_squared = (A*rdiff**2 + E*sdiff**2 + I*idiff**2 + 2.0*rdiff*(B*sdiff + C*idiff) + 2.0*F*sdiff*idiff)/(det*Sn)
+
+    # Compute the FN term for the Scut only
+    delta = (A*F**2 + I*B**2 - 2.0*B*C*F)/det
+    FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn
+
+    if chi_squared_only:
+        return chi_squared
+    elif sumgals:
+        return 0.5 * np.sum(chi_squared + log_det + 2.0*FN)
+    else:
+        return 0.5 * (chi_squared + log_det)
+
+# Calculates f_n (the integral over the censored 3D Gaussian of the Fundamental Plane) for a magnitude limit and velocity dispersion cut. 
+def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
+
+    a, b, rmean, smean, imean, sigma1, sigma2, sigma3 = FPparams
+    k = 0.0
+
+    fac1, fac2, fac3, fac4 = k*a**2 + k*b**2 - a, k*a - 1.0 - b**2, b*(k+a), 1.0 - k*a
+    norm1, norm2 = 1.0+a**2+b**2, 1.0+b**2+k**2*(a**2+b**2)-2.0*a*k
+    dsigma31, dsigma23 = sigma3**2-sigma1**2, sigma2**2-sigma3**3
+    sigmar2 =  1.0/norm1*sigma1**2 +      b**2/norm2*sigma2**2 + fac1**2/(norm1*norm2)*sigma3**2
+    sigmas2 = a**2/norm1*sigma1**2 + k**2*b**2/norm2*sigma2**2 + fac2**2/(norm1*norm2)*sigma3**2
+    sigmai2 = b**2/norm1*sigma1**2 +   fac4**2/norm2*sigma2**2 + fac3**2/(norm1*norm2)*sigma3**2
+    sigmars =  -a/norm1*sigma1**2 -   k*b**2/norm2*sigma2**2 + fac1*fac2/(norm1*norm2)*sigma3**2
+    sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
+    sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
+
+    err_r = er**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*zobs))**2 + sigmar2
+    err_s = es**2 + sigmas2
+    err_i = ei**2 + sigmai2
+    cov_ri = -1.0*er*ei + sigmari
+
+    A = err_s*err_i - sigmasi**2
+    B = sigmasi*cov_ri - sigmars*err_i
+    C = sigmars*sigmasi - err_s*cov_ri
+    E = err_r*err_i - cov_ri**2
+    F = sigmars*cov_ri - err_r*sigmasi
+    I = err_r*err_s - sigmars**2
+
+    # Inverse of the determinant!!
+    det = 1.0/(err_r*A + sigmars*B + cov_ri*C)
+
+    # Compute all the G, H and R terms
+    G = np.sqrt(E)/(2*F-B)*(C*(2*F+B) - A*F - 2.0*B*I)
+    delta = (I*B**2 + A*F**2 - 2.0*B*C*F)*det**2
+    Edet = E*det
+    Gdet = (G*det)**2
+    Rmin = (lmin - rmean - imean/2.0)*np.sqrt(2.0*delta/det)/(2.0*F-B)
+    Rmax = (lmax - rmean - imean/2.0)*np.sqrt(2.0*delta/det)/(2.0*F-B)
+
+    G0 = -np.sqrt(2.0/(1.0+Gdet))*Rmax
+    G2 = -np.sqrt(2.0/(1.0+Gdet))*Rmin
+    G1 = -np.sqrt(Edet/(1.0+delta))*(smin - smean)
+
+    H = np.sqrt(1.0+Gdet+delta)
+    H0 = G*det*np.sqrt(delta) - np.sqrt(Edet/2.0)*(1.0+Gdet)*(smin - smean)/Rmax
+    H2 = G*det*np.sqrt(delta) - np.sqrt(Edet/2.0)*(1.0+Gdet)*(smin - smean)/Rmin
+    H1 = G*det*np.sqrt(delta) - np.sqrt(2.0/Edet)*(1.0+delta)*Rmax/(smin - smean)
+    H3 = G*det*np.sqrt(delta) - np.sqrt(2.0/Edet)*(1.0+delta)*Rmin/(smin - smean)
+
+    FN = special.owens_t(G0, H0/H)+special.owens_t(G1, H1/H)-special.owens_t(G2, H2/H)-special.owens_t(G1, H3/H)
+    FN += 1.0/(2.0*np.pi)*(np.arctan2(H2,H)+np.arctan2(H3,H)-np.arctan2(H0,H)-np.arctan2(H1,H))
+    FN += 1.0/4.0*(special.erf(G0/np.sqrt(2.0))-special.erf(G2/np.sqrt(2.0)))
+
+    # This can go less than zero for very large distances if there are rounding errors, so set a floor
+    # This shouldn't affect the measured logdistance ratios as these distances were already very low probability!
+    index = np.where(FN < 1.0e-15)
+    FN[index] = 1.0e-15
+
+    return np.log(FN)

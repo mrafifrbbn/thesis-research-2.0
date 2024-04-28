@@ -2,6 +2,7 @@
 import math
 import numpy as np
 from scipy import integrate, interpolate, special
+from scipy.special import erf
 
 # Speed of light in km/s
 LightSpeed = 299792.458
@@ -162,64 +163,59 @@ def rz_table(redmax = 1.0, nlookbins=400, om=0.3121):
 
     return red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline
 
-    # The likelihood function for the Fundamental Plane
-def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, dz, kr, Ar, smin, sumgals=True, chi_squared_only=False):
+# The likelihood function for the Fundamental Plane
+def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, sumgals=True, chi_squared_only=False):
+    
+	a, b, rmean, smean, imean, sigma1, sigma2, sigma3 = params
+	k = 0.0
 
-    # Trial FP parameters
-    a, b, rmean, smean, imean, sigma1, sigma2, sigma3 = params 
-    # The additional parameter assumed to be zero
-    k = 0.0
+	fac1, fac2, fac3, fac4 = k*a**2 + k*b**2 - a, k*a - 1.0 - b**2, b*(k+a), 1.0 - k*a
+	norm1, norm2 = 1.0+a**2+b**2, 1.0+b**2+k**2*(a**2+b**2)-2.0*a*k
+	dsigma31, dsigma23 = sigma3**2-sigma1**2, sigma2**2-sigma3**3
+	sigmar2 =  1.0/norm1*sigma1**2 +      b**2/norm2*sigma2**2 + fac1**2/(norm1*norm2)*sigma3**2
+	sigmas2 = a**2/norm1*sigma1**2 + k**2*b**2/norm2*sigma2**2 + fac2**2/(norm1*norm2)*sigma3**2
+	sigmai2 = b**2/norm1*sigma1**2 +   fac4**2/norm2*sigma2**2 + fac3**2/(norm1*norm2)*sigma3**2
+	sigmars =  -a/norm1*sigma1**2 -   k*b**2/norm2*sigma2**2 + fac1*fac2/(norm1*norm2)*sigma3**2
+	sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
+	sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
 
-    # These are the components of the eigenvectors and their magnitudes
-    fac1, fac2, fac3, fac4 = k*a**2 + k*b**2 - a, k*a - 1.0 - b**2, b*(k+a), 1.0 - k*a
-    norm1, norm2 = 1.0+a**2+b**2, 1.0+b**2+k**2*(a**2+b**2)-2.0*a*k
-    # The components of the scatter matrix
-    dsigma31, dsigma23 = sigma3**2-sigma1**2, sigma2**2-sigma3**3
-    sigmar2 =  1.0/norm1*sigma1**2 +      b**2/norm2*sigma2**2 + fac1**2/(norm1*norm2)*sigma3**2
-    sigmas2 = a**2/norm1*sigma1**2 + k**2*b**2/norm2*sigma2**2 + fac2**2/(norm1*norm2)*sigma3**2
-    sigmai2 = b**2/norm1*sigma1**2 +   fac4**2/norm2*sigma2**2 + fac3**2/(norm1*norm2)*sigma3**2
-    sigmars =  -a/norm1*sigma1**2 -   k*b**2/norm2*sigma2**2 + fac1*fac2/(norm1*norm2)*sigma3**2
-    sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
-    sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
-    sigma_cov = np.array([[sigmar2, sigmars, sigmari], [sigmars, sigmas2, sigmasi], [sigmari, sigmasi, sigmai2]])
+	sigma_cov = np.array([[sigmar2, sigmars, sigmari], [sigmars, sigmas2, sigmasi], [sigmari, sigmasi, sigmai2]])
 
-    # Compute the chi-squared and determinant (quickly!)
-    # The component of the covariance matrix
-    cov_r = err_r**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*z_obs))**2 + sigmar2
-    cov_s = err_s**2 + sigmas2
-    cov_i = err_i**2 + sigmai2
-    cov_ri = -1.0*err_r*err_i + sigmari
+	# Compute the chi-squared and determinant (quickly!)
+	cov_r = err_r**2 + np.log10(1.0 + 300.0/(LightSpeed*z_obs))**2 + sigmar2
+	cov_s = err_s**2 + sigmas2
+	cov_i = err_i**2 + sigmai2
+	cov_ri = -1.0*err_r*err_i + sigmari
 
-    # Minors of the covariance matrix
-    A = cov_s*cov_i - sigmasi**2
-    B = sigmasi*cov_ri - sigmars*cov_i
-    C = sigmars*sigmasi - cov_s*cov_ri
-    E = cov_r*cov_i - cov_ri**2
-    F = sigmars*cov_ri - cov_r*sigmasi
-    I = cov_r*cov_s - sigmars**2
+	A = cov_s*cov_i - sigmasi**2
+	B = sigmasi*cov_ri - sigmars*cov_i
+	C = sigmars*sigmasi - cov_s*cov_ri
+	E = cov_r*cov_i - cov_ri**2
+	F = sigmars*cov_ri - cov_r*sigmasi
+	I = cov_r*cov_s - sigmars**2	
 
-    # Using the mean values rbar, sbar, ibar as the center
-    sdiff, idiff = s - smean, i - imean
-    rnew = r - np.tile(logdists, (len(r), 1)).T
-    rdiff  = rnew - rmean
+	sdiff, idiff = s - smean, i - imean
+	rnew = r - np.tile(logdists, (len(r), 1)).T
+	rdiff = rnew - rmean
 
-    # Determinant of the covariance matrix
-    det = cov_r*A + sigmars*B + cov_ri*C
-    log_det = np.log(det)/Sn
+	det = cov_r*A + sigmars*B + cov_ri*C
+	log_det = np.log(det)/Sn
 
-    # The chi-squared term of the likelihood function
-    chi_squared = (A*rdiff**2 + E*sdiff**2 + I*idiff**2 + 2.0*rdiff*(B*sdiff + C*idiff) + 2.0*F*sdiff*idiff)/(det*Sn)
+	chi_squared = (A*rdiff**2 + E*sdiff**2 + I*idiff**2 + 2.0*rdiff*(B*sdiff + C*idiff) + 2.0*F*sdiff*idiff)/(det*Sn)
 
-    # Compute the FN term for the Scut only
-    delta = (A*F**2 + I*B**2 - 2.0*B*C*F)/det
-    FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn
+	#print(np.amin(B/A), np.amax(B/A), np.amin(C/A), np.amax(C/A))
 
-    if chi_squared_only:
-        return chi_squared
-    elif sumgals:
-        return 0.5 * np.sum(chi_squared + log_det + 2.0*FN)
-    else:
-        return 0.5 * (chi_squared + log_det)
+	# Compute the FN term for the Scut only
+	delta = (A*F**2 + I*B**2 - 2.0*B*C*F)/det
+	FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn
+
+	if chi_squared_only:
+		# print(np.quantile(np.exp(Sn*FN), 0.99, axis=0))
+		return chi_squared
+	elif sumgals:
+		return 0.5 * np.sum(chi_squared + log_det + 2.0*FN)
+	else:
+		return 0.5 * (chi_squared + log_det)
 
 # Calculates f_n (the integral over the censored 3D Gaussian of the Fundamental Plane) for a magnitude limit and velocity dispersion cut. 
 def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
@@ -237,7 +233,7 @@ def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
     sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
     sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
 
-    err_r = er**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*zobs))**2 + sigmar2
+    err_r = er**2 + np.log10(1.0 + 300.0/(LightSpeed*zobs))**2 + sigmar2
     err_s = es**2 + sigmas2
     err_i = ei**2 + sigmai2
     cov_ri = -1.0*er*ei + sigmari
@@ -280,3 +276,14 @@ def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
     FN[index] = 1.0e-15
 
     return np.log(FN)
+
+# Gaussian function (for fitting)
+def gaus(x, mu, sig):
+    return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
+
+# Skew-normal distribution
+def skewnormal(x, loc, err, alpha):
+    A = 1 / (np.sqrt(2 * np.pi) * err)
+    B = np.exp(-(x - loc)**2/(2 * err**2))
+    C = 1 + erf(alpha * (x - loc) / (np.sqrt(2) * err))
+    return A * B * C

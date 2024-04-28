@@ -1,4 +1,5 @@
 import os
+import trace
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -32,21 +33,26 @@ off_sdss = totoff.loc[0, ['off_sdss']].values[0]
 off_lamost = totoff.loc[0, ['off_lamost']].values[0]
 
 # Define the veldisp lower limit (as defined in the guide)
-## Default: use nominal veldisp limit + offset of each survey
-if SMIN_SETTING == 0:
-    SURVEY_VELDISP_LIMIT['6dFGS'] = np.log10(112) - off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] = np.log10(70) - off_sdss
-    SURVEY_VELDISP_LIMIT['LAMOST'] = np.log10(50) - off_lamost
-## First setting: use 6dFGS veldisp + offset for everything
-elif SMIN_SETTING == 1:
-    SURVEY_VELDISP_LIMIT['6dFGS'] = np.log10(112) - off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] = np.log10(112) - off_6df
-    SURVEY_VELDISP_LIMIT['LAMOST'] = np.log10(112) - off_6df
-## Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
-else:
-    SURVEY_VELDISP_LIMIT['6dFGS'] = np.log10(112) - off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] = np.log10(112) - off_6df
-    SURVEY_VELDISP_LIMIT['LAMOST'] = np.log10(50) - off_lamost
+SURVEY_VELDISP_LIMIT = {
+    # Default: use nominal veldisp limit + offset of each survey
+    0: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(70) - off_sdss,
+        'LAMOST': np.log10(50) - off_lamost
+    },
+    # First setting: use 6dFGS veldisp + offset for everything
+    1: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(112) - off_6df,
+        'LAMOST': np.log10(112) - off_6df
+    },
+    # Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
+    2: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(112) - off_6df,
+        'LAMOST': np.log10(50) - off_lamost
+    }
+}
 
 INPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
@@ -103,12 +109,12 @@ def fit_FP():
         pvals_cut = 0.01
 
         # Velocity dispersion lower limit
-        smin = SURVEY_VELDISP_LIMIT[survey]
+        smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
         # The comoving distance to each galaxy using group redshift as distance indicator
-        dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0) 
+        dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
 
         # (1+z) factor because we use luminosity distance
         Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
@@ -118,7 +124,7 @@ def fit_FP():
         # Find the corresponding maximum redshift
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
         Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
-
+        
         # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
         data_fit = df
         badcount = len(df)
@@ -140,9 +146,9 @@ def fit_FP():
 
             # Fit the FP parameters
             FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-                args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, dz, data_fit["kcor_j"].to_numpy(), data_fit["extinction_j"].to_numpy(), smin), seed=42, maxiter=10000, tol=1.0e-6)
+			    args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6)
             # Calculate the chi-squared 
-            chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, dz, df["kcor_j"].to_numpy(), df["extinction_j"].to_numpy(), smin, sumgals=False, chi_squared_only=True)[0]
+            chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, sumgals=False, chi_squared_only=True)[0]
 
             # Calculate the p-value (x,dof)
             pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
@@ -204,7 +210,7 @@ def sample_likelihood():
         if not np.isfinite(lp):
             return -np.inf
         else:
-            return lp - FP_func(theta, 0., z, r, s, i, dr, ds, di, Sn, dz, 0., 0., smin, sumgals=True, chi_squared_only=False)
+            return lp - FP_func(theta, 0., z, r, s, i, dr, ds, di, Sn, smin, sumgals=True, chi_squared_only=False)
     
     for survey in SURVEY_LIST:
         # Load the outlier-rejected data
@@ -221,7 +227,7 @@ def sample_likelihood():
         A_j = df['extinction_j'].to_numpy()
 
         # Velocity dispersion lower limit
-        smin = SURVEY_VELDISP_LIMIT[survey]
+        smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
@@ -370,7 +376,7 @@ def main():
         generate_corner_plot()
 
         fit_likelihood()
-
+        logger.info(f'Fitting the Fundamental Plane successful!')
     except Exception as e:
         logger.error(f'Fitting the FP failed. Reason: {e}.')
 

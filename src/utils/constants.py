@@ -1,5 +1,12 @@
+import os
 import numpy as np
+import pandas as pd
 from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv()
+
+ROOT_PATH = os.environ.get('ROOT_PATH')
 
 # Plot configurations
 GOLDEN_RATIO = 1.618033988749895
@@ -27,12 +34,12 @@ SOLAR_MAGNITUDE = {
     'k': 3.27
 }
 
-# Nominal veldisp limit for each survey [km/s]
-SURVEY_VELDISP_LIMIT = {
-    '6dFGS': np.log10(112),
-    'SDSS': np.log10(70),
-    'LAMOST': np.log10(50)
-}
+# # Nominal veldisp limit for each survey [km/s]
+# SURVEY_VELDISP_LIMIT = {
+#     '6dFGS': np.log10(112),
+#     'SDSS': np.log10(70),
+#     'LAMOST': np.log10(50)
+# }
 
 # Convert integers to string (1 -> first, 2 -> second, etc.)
 INT_CONVERTER = {
@@ -40,6 +47,44 @@ INT_CONVERTER = {
     1: 'first',
     2: 'second',
     3: 'third'
+}
+
+# Grab veldisp offsets
+# try:
+#     totoff = pd.read_csv(os.path.join(ROOT_PATH, '/artifacts/veldisp_calibration/totoffs.csv'))
+#     off_6df = totoff.loc[0, ['off_6df']].values[0]
+#     off_sdss = totoff.loc[0, ['off_sdss']].values[0]
+#     off_lamost = totoff.loc[0, ['off_lamost']].values[0]
+# except:
+#     off_6df = 0
+#     off_sdss = 0
+#     off_lamost = 0
+
+totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
+off_6df = totoff.loc[0, ['off_6df']].values[0]
+off_sdss = totoff.loc[0, ['off_sdss']].values[0]
+off_lamost = totoff.loc[0, ['off_lamost']].values[0]
+
+# Define the veldisp lower limit (as defined in the guide)
+SURVEY_VELDISP_LIMIT = {
+    # Default: use nominal veldisp limit + offset of each survey
+    0: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(70) - off_sdss,
+        'LAMOST': np.log10(50) - off_lamost
+    },
+    # First setting: use 6dFGS veldisp + offset for everything
+    1: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(112) - off_6df,
+        'LAMOST': np.log10(112) - off_6df
+    },
+    # Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
+    2: {
+        '6dFGS': np.log10(112) - off_6df,
+        'SDSS': np.log10(112) - off_6df,
+        'LAMOST': np.log10(50) - off_lamost
+    }
 }
 
 # Function to create parent folder, given a full absolute path as dictionary or string

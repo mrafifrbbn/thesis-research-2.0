@@ -26,34 +26,6 @@ SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 # Create logging instance
 logger = get_logger('fit_fp')
 
-# Grab veldisp offsets
-totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
-off_6df = totoff.loc[0, ['off_6df']].values[0]
-off_sdss = totoff.loc[0, ['off_sdss']].values[0]
-off_lamost = totoff.loc[0, ['off_lamost']].values[0]
-
-# Define the veldisp lower limit (as defined in the guide)
-SURVEY_VELDISP_LIMIT = {
-    # Default: use nominal veldisp limit + offset of each survey
-    0: {
-        '6dFGS': np.log10(112) - off_6df,
-        'SDSS': np.log10(70) - off_sdss,
-        'LAMOST': np.log10(50) - off_lamost
-    },
-    # First setting: use 6dFGS veldisp + offset for everything
-    1: {
-        '6dFGS': np.log10(112) - off_6df,
-        'SDSS': np.log10(112) - off_6df,
-        'LAMOST': np.log10(112) - off_6df
-    },
-    # Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
-    2: {
-        '6dFGS': np.log10(112) - off_6df,
-        'SDSS': np.log10(112) - off_6df,
-        'LAMOST': np.log10(50) - off_lamost
-    }
-}
-
 INPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),

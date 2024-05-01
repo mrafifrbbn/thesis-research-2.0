@@ -24,9 +24,7 @@ data/preprocessed/spectrophoto/*.csv
 data/processed/rsi_derived/*.csv
 
 artifacts/logdist/*
-src/GENRMOCKFP_6dF/*
-src/GENRMOCKFP_SDSS/*
-src/GENRMOCKFP_LAMOST/*
+src/mocks/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

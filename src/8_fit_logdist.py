@@ -116,9 +116,9 @@ def fit_logdist():
         gamma1 = np.where(gamma1 > 0.99, 0.99, gamma1)
         gamma1 = np.where(gamma1 < -0.99, -0.99, gamma1)
         delta = np.sign(gamma1)*np.sqrt(np.pi/2.0*1.0/(1.0 + ((4.0 - np.pi)/(2.0*np.abs(gamma1)))**(2.0/3.0)))
-        scale = err*np.sqrt(1.0/(1.0 - 2.0*delta**2/np.pi))
-        loc = mean - scale*delta*np.sqrt(2.0/np.pi)
-        alpha = delta/(np.sqrt(1.0 - delta**2))
+        scale = err * np.sqrt(1.0 / (1.0 - 2.0 * delta**2 / np.pi))
+        loc = mean - scale * delta * np.sqrt(2.0 / np.pi)
+        alpha = delta / (np.sqrt(1.0 - delta**2))
 
         # Store the skew-normal values to the dataframe
         df["logdist_mean"] = mean
@@ -216,10 +216,12 @@ def main():
         logger.info('Fitting log-distance ratios...')
         logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}.')
         
-        # fit_logdist()
+        fit_logdist()
 
+        logger.info('Comparing Gaussian curve_fit vs skew-normal...')
         compare_cf_vs_formula()
         
+        logger.info('Plotting the best and worst posterior distributions...')
         plot_best_worst_posterior()
 
         logger.info('Fitting log-distance ratios successful!')

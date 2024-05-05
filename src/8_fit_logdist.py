@@ -97,7 +97,7 @@ def fit_logdist():
         loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, sumgals=False)
         start = time.time()
         FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
-        logger.info(f'Time elapsed = {time.time() - start} s.')
+        logger.info(f'Time elapsed to fit the logdists = {time.time() - start} s.')
 
         # Convert to the PDF for logdistance
         logP_dist = -1.5 * np.log(2.0 * math.pi) - loglike - FNvals

@@ -43,7 +43,7 @@ create_parent_folder(OUTPUT_FILEPATH)
 IMG_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'img/phot_error/smin_setting_{SMIN_SETTING}.png')
 
 # Piecewise linear function
-def piecewise_linear(x, x0, y0, k):
+def piecewise_linear(x: np.ndarray, x0: float, y0: float, k: float) -> np.ndarray:
     '''
     A function that is constant at x <= x0, and linear at x > x0.
     '''
@@ -51,7 +51,7 @@ def piecewise_linear(x, x0, y0, k):
     return y_pred
 
 # Function to derive the photometric error
-def derive_phot_error():
+def derive_phot_error() -> np.ndarray:
     '''
     A function to derive the photometric errors following the method outlined in Magoulas et al. 2012.
     The scatter vs magnitude is fit with the piecewise linear function iteratively to remove outliers.
@@ -142,7 +142,7 @@ def derive_phot_error():
     
     return popt
     
-def apply_phot_error(popt):
+def apply_phot_error(popt: np.ndarray) -> None:
     '''
     This function applies the error formula for every galaxy.
     '''
@@ -153,7 +153,7 @@ def apply_phot_error(popt):
         df = df[REQ_COLS[survey]].rename({'r_j': 'r', 'er_j': 'er', 's_scaled': 's', 'es_scaled': 'es', 'i_j': 'i', 'ei_j': 'ei'}, axis=1)
         df.to_csv(OUTPUT_FILEPATH[survey], index=False)
         
-def main():
+def main() -> None:
     try:
         logger.info(f"{'=' * 100}")
         logger.info("Deriving photometric errors...")

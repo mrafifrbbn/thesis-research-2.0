@@ -60,7 +60,7 @@ OUTPUT_FILEPATHS = {
     'LAMOST': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/lamost.csv')
 }
 
-def derive_rsi():
+def derive_rsi() -> None:
     '''
     A function to derive r, s, i quantities for each galaxy in the three surveys. The steps are as follows:
     0. Extra step only for SDSS and LAMOST (John's selection criteria).
@@ -184,7 +184,7 @@ def derive_rsi():
         logger.info(f'Number of galaxies = {len(df)}. Number of unique galaxies = {df.tmass.nunique()}. Saving the output at {OUTPUT_FILEPATHS[survey]}...')
         df.to_csv(OUTPUT_FILEPATHS[survey],index=False)
 
-def main():
+def main() -> None:
     try:
         logger.info(f"{'='*50}")
         logger.info('Deriving r, s, i for the three surveys...')

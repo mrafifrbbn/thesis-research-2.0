@@ -66,7 +66,7 @@ mag_high = 13.65
 zmin = 3000.0 / LIGHTSPEED
 zmax = 16120. / LIGHTSPEED
 
-def fit_FP():
+def fit_FP() -> None:
     # Set global random seed
     np.random.seed(42)
     
@@ -166,7 +166,7 @@ def fit_FP():
     FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
     pd.DataFrame(FP_params, columns=FP_columns, index=SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
 
-def sample_likelihood():
+def sample_likelihood() -> None:
     # The log-prior function for the FP parameters
     def log_prior(theta, param_boundaries):
         a, b, rmean, smean, imean, sig1, sig2, sig3 = theta
@@ -235,7 +235,7 @@ def sample_likelihood():
         flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
         np.save(MCMC_CHAIN_OUTPUT_FILEPATH[survey], flat_samples)
         
-def generate_corner_plot():
+def generate_corner_plot() -> None:
     # Set border thickness
     mpl.rcParams['axes.linewidth'] = 2.0
 
@@ -281,7 +281,7 @@ def generate_corner_plot():
 
     g.export(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH, dpi=300)
 
-def fit_likelihood():
+def fit_likelihood() -> None:
     def fit_and_plot(posteriors, fp_paramname, fp_labelname, axis):
         def gaus(x, mu, sig):
             return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
@@ -330,7 +330,7 @@ def fit_likelihood():
         fig.savefig(LIKELIHOOD_DIST_IMG_FILEPATH[survey])
         logger.info('\n')
 
-def main():
+def main() -> None:
     try:
         logger.info(f'{"=" * 50}')
         logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')

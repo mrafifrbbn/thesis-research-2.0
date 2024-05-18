@@ -3,6 +3,7 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from typing import Dict, Tuple
 from scipy.optimize import curve_fit
 from scipy.stats import norm
 from utils.logging_config import get_logger
@@ -34,9 +35,9 @@ VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/veldisp_cali
 
 # --------------------------- VARIABLE THAT NEEDS TO BE ADJUSTED --------------------------- #
 ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only']
-METHOD_NO = 2       # Fill 0, 1, or 2
+METHOD_NO: int = 2       # Fill 0, 1, or 2
 
-def get_common_galaxies():
+def get_common_galaxies() -> None:
     '''
     A function to find galaxies with repeat velocity dispersion measurements.
     '''
@@ -96,7 +97,7 @@ def get_common_galaxies():
     except Exception as e:
         logger.error(f'Finding common galaxies failed. Reason: {e}.')
 
-def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.0, k_lamost=1.0, sigma_clip=3.0, convergence_tol=0.005):
+def update_error_scaling(s_sdss: np.ndarray, es_sdss: np.ndarray, s_lamost: np.ndarray, es_lamost: np.ndarray, survey: str, k_sdss: float = 1.0, k_lamost: float = 1.0, sigma_clip: float = 3.0, convergence_tol: float = 0.005) -> Tuple[float, float]:
     '''
     A function to calculate the error scaling for SDSS and LAMOST.
     '''
@@ -138,11 +139,11 @@ def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.
         logger.error(f'Updating scaling for {survey} failed. Reason: {e}.')
 
 # ----------- Find the error scaling using the old method (varying both k_sdss and k_lamost) ----------- #
-def get_error_scaling_old_method(df_repeat, sigma_clip=5.0, max_iter=10, sdss_first=True):
+def get_error_scaling_old_method(df_repeat: pd.DataFrame, sigma_clip: float = 5.0, max_iter: int = 10, sdss_first: bool = True) -> Tuple[float, bool]:
     '''
     A function to obtain the error scaling
     '''
-    def update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, survey, k_sdss=1.0, k_lamost=1.0, sigma_clip=3.0, convergence_tol=0.005):
+    def update_error_scaling(s_sdss: np.ndarray, es_sdss: np.ndarray, s_lamost: np.ndarray, es_lamost: np.ndarray, survey: str, k_sdss: float = 1.0, k_lamost: float = 1.0, sigma_clip: float = 3.0, convergence_tol: float = 0.005) -> Tuple[float, bool]:
         '''
         A function to calculate the error scaling for SDSS and LAMOST.
         '''
@@ -214,11 +215,11 @@ def get_error_scaling_old_method(df_repeat, sigma_clip=5.0, max_iter=10, sdss_fi
 
 
 # ------------- Finding the error scaling of k_6df and k_lamost by fixing k_sdss = 1 --------------- #
-def get_error_scaling_one_fiducial(df_repeat, sigma_clip=5.0, max_iter=10):
+def get_error_scaling_one_fiducial(df_repeat: pd.DataFrame, sigma_clip: float = 5.0, max_iter: int = 10) -> Tuple[float, float]:
     '''
     A function to obtain the error scaling
     '''
-    def update_error_scaling(s_var, es_var, s_fiducial, es_fiducial, survey, k=1.0, sigma_clip=3.0, convergence_tol=0.005):
+    def update_error_scaling(s_var: np.ndarray, es_var: np.ndarray, s_fiducial: np.ndarray, es_fiducial: np.ndarray, survey: str, k: float = 1.0, sigma_clip: float = 3.0, convergence_tol: float = 0.005) -> Tuple[float, bool]:
         '''
         A function to calculate the error scaling for SDSS and LAMOST.
         '''
@@ -286,11 +287,11 @@ def get_error_scaling_one_fiducial(df_repeat, sigma_clip=5.0, max_iter=10):
 
 
 # --------- Find the error scaling only for LAMOST (assume k_sdss = k_6df = 1) ---------- #
-def get_error_scaling_lamost_only(df_repeat, sigma_clip=5.0, max_iter=10):
+def get_error_scaling_lamost_only(df_repeat: pd.DataFrame, sigma_clip: float = 5.0, max_iter: int = 10) -> Tuple[float, float]:
     '''
     A function to obtain the error scaling
     '''
-    def update_error_scaling(s_var, es_var, s_fiducial, es_fiducial, survey, k=1.0, sigma_clip=3.0, convergence_tol=0.005):
+    def update_error_scaling(s_var: np.ndarray, es_var: np.ndarray, s_fiducial: np.ndarray, es_fiducial: np.ndarray, survey: str, k: float = 1.0, sigma_clip: float = 3.0, convergence_tol: float = 0.005) -> Tuple[float, bool]:
         '''
         A function to calculate the error scaling for SDSS and LAMOST.
         '''
@@ -355,7 +356,7 @@ def get_error_scaling_lamost_only(df_repeat, sigma_clip=5.0, max_iter=10):
         
     return k_lamost_sdss_fid, k_lamost_6df_fid
 
-def get_offset(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5, nboot=10, level=0., max_iter=100., random_seed=42):
+def get_offset(k_6df: float = 1.0, k_sdss: float = 1.0, k_lamost: float = 1.0, runs: int = 3, cut: float = 0.2, target: float = 0.5, nboot: int = 10, level: float = 0.0, max_iter: int = 100., random_seed: int = 42) -> pd.DataFrame:
     '''
     A function to get the offset in log velocity dispersions (or equivalently scaling in linear velocity dispersions).
 
@@ -485,7 +486,7 @@ def get_offset(k_6df=1.0, k_sdss=1.0, k_lamost=1.0, runs=3, cut=0.2, target=0.5,
     except Exception as e:
         logger.error(f"Finding velocity dispersion offsets failed. Reason: {e}")
 
-def get_mean_offset(totoffs, nbins=10):
+def get_mean_offset(totoffs: pd.DataFrame, nbins: int = 10) -> Tuple[float, float]:
     '''
     A function to obtain the mean offset, given the offsets from all the simulations.
     '''
@@ -515,7 +516,7 @@ def get_mean_offset(totoffs, nbins=10):
     except Exception as e:
         logger.error(f'Finding the mean offsets failed. Reason: {e}.')
 
-def generate_comparison_plot(method, k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6df=0., off_sdss=0., off_lamost=0., sigma_clip=5.0):
+def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.0, k_lamost: float = 1.0, off_6df: float = 0.0, off_sdss: float = 0.0, off_lamost: float = 0.0, sigma_clip: float = 5.0) -> None:
     '''
     A function to generate the chi distributions histogram before vs after applying the calibrations.
     '''
@@ -589,11 +590,11 @@ def generate_comparison_plot(method, k_6df=1.0, k_sdss=1.0, k_lamost=1.0, off_6d
         logger.info(f'Saving image to {img_output_path}')
         plt.tight_layout()
         fig.savefig(img_output_path, dpi=300)
-        return
+        
     except Exception as e:
         logger.error(f'Generating comparison plot failed. Reason: {e}.')
 
-def apply_scalings(error_scalings, offsets):
+def apply_scalings(error_scalings: Dict[str, float], offsets: Dict[str, float]) -> None:
     '''
     This function applies the error scalings and velocity dispersion offsets to the data.
     '''
@@ -606,7 +607,7 @@ def apply_scalings(error_scalings, offsets):
     except Exception as e:
         logger.error(f'Applying scalings failed. Reason: {e}.')
 
-def main():
+def main() -> None:
     logger.info(f'Finding repeat measurements...')
     start = time.time()
     df = get_common_galaxies()

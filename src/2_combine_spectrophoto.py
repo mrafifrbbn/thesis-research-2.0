@@ -49,7 +49,7 @@ JRL_PHOTO_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/jhk_r_e.csv')
 TEMPEL_GAL_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss8/tempel_dr8gal.fits')
 TEMPEL_GROUP_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss8/tempel_dr8gr.fits')
 
-def combine_6df_spectrophoto():
+def combine_6df_spectrophoto() -> None:
     '''
     A function to combine the 6dFGS FP galaxies with 2MASS photometry and velocity dispersions.
     Steps:
@@ -127,7 +127,7 @@ def combine_6df_spectrophoto():
     except Exception as e:
         logger.error(f"Combining 6dFGS spectroscopy and photometry data failed. Reason: {e}")
 
-def combine_sdss_lamost_spectrophoto():
+def combine_sdss_lamost_spectrophoto() -> None:
     '''
     A function to combine the SDSS and LAMOST spectroscopy (veldisp), 2MASS photometry, John's GALFIT measurements, 
     and Tempel's cluster data.
@@ -233,7 +233,7 @@ def combine_sdss_lamost_spectrophoto():
     except Exception as e:
         logger.error(f"Combining {survey.upper()} spectroscopy and photometry data failed. Reason: {e}")
     
-def main():
+def main() -> None:
     logger.info(f"{'='*50}")
     logger.info('Combining 6dFGS data...')
     start = time.time()

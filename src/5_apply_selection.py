@@ -34,29 +34,6 @@ HIGH_Z_OUTPUT_FILEPATH = {
 }
 create_parent_folder(HIGH_Z_OUTPUT_FILEPATH)
 
-# Grab veldisp offsets
-totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
-off_6df = totoff.loc[0, ['off_6df']].values[0]
-off_sdss = totoff.loc[0, ['off_sdss']].values[0]
-off_lamost = totoff.loc[0, ['off_lamost']].values[0]
-
-# Define the veldisp lower limit (as defined in the guide)
-## Default: use nominal veldisp limit + offset of each survey
-if SMIN_SETTING == 0:
-    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] -= off_sdss
-    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
-## First setting: use 6dFGS veldisp + offset for everything
-elif SMIN_SETTING == 1:
-    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
-    SURVEY_VELDISP_LIMIT['LAMOST'] = SURVEY_VELDISP_LIMIT['6dFGS']
-## Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
-else:
-    SURVEY_VELDISP_LIMIT['6dFGS'] -= off_6df
-    SURVEY_VELDISP_LIMIT['SDSS'] = SURVEY_VELDISP_LIMIT['6dFGS']
-    SURVEY_VELDISP_LIMIT['LAMOST'] -= off_lamost
-
 LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/lamost_good_pv_list.csv')
 
 # Selection criteria constants
@@ -64,7 +41,7 @@ UPPER_Z_LIMIT = 16120.0 / LIGHTSPEED
 LOWER_Z_LIMIT = 3000.0 / LIGHTSPEED
 UPPER_MAG_LIMIT = 13.65
 
-def apply_selection():
+def apply_selection() -> None:
     '''
     A function to apply redshift, magnitude, and velocity dispersions cut to the veldisp-calibrated sample.
     '''
@@ -100,13 +77,13 @@ def apply_selection():
         old_count = new_count
 
         # 4. Apply lower veldisp limit
-        df_high_z = df_high_z[df_high_z['s_scaled'] >= SURVEY_VELDISP_LIMIT[survey]]
+        df_high_z = df_high_z[df_high_z['s_scaled'] >= SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]]
         new_count = len(df_high_z)
-        logger.info(f"Number of galaxies after s_scaled >= {SURVEY_VELDISP_LIMIT[survey]} = {new_count} | Discarded galaxies = {old_count - new_count}")
+        logger.info(f"Number of galaxies after s_scaled >= {SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]} = {new_count} | Discarded galaxies = {old_count - new_count}")
         old_count = new_count
 
         # 5. Select the low-redshift galaxies (will not be used to fit the FP due to high scatter but PVs will still be measured)
-        df_low_z = df[(df['z_dist_est'] <= LOWER_Z_LIMIT) & ((df['j_m_ext'] - df['extinction_j']) <= UPPER_MAG_LIMIT) & (df['s_scaled'] >= SURVEY_VELDISP_LIMIT[survey])]
+        df_low_z = df[(df['z_dist_est'] <= LOWER_Z_LIMIT) & ((df['j_m_ext'] - df['extinction_j']) <= UPPER_MAG_LIMIT) & (df['s_scaled'] >= SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey])]
 
         # 6. For LAMOST, select galaxies classified as ETG from John's visual inspections
         if survey == 'LAMOST':
@@ -124,11 +101,11 @@ def apply_selection():
         df_low_z.to_csv(LOW_Z_OUTPUT_FILEPATH[survey], index=False)
         logger.info('\n')
 
-def main():
+def main() -> None:
     try:
         logger.info(f"{'=' * 50}")
         logger.info(f'Applying selection criteria using SMIN_SETTING {SMIN_SETTING}...')
-        logger.info(SURVEY_VELDISP_LIMIT)
+        logger.info(SURVEY_VELDISP_LIMIT[SMIN_SETTING])
         start = time.time()
         apply_selection()
         end = time.time()

@@ -23,7 +23,7 @@ SDFGS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/6df
 SDSS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/sdss.ascii')
 LAMOST_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/lamost.ascii')
 
-def get_eq_coords():
+def get_eq_coords() -> None:
     '''
     Combining the equatorial coordinates for all the galaxies in the raw data and save them in IPAC format.
     These coordinates are fed into the 2MASS XSC to obtain the 2MASS photometry.
@@ -48,7 +48,7 @@ def get_eq_coords():
     logger.info(f'Total LAMOST galaxies: {len(df3)}. Saving the coordinates to {LAMOST_OUTPUT_FILEPATH}')
     Table.from_pandas(df3).write(LAMOST_OUTPUT_FILEPATH, format='ipac', overwrite=True)
 
-def main():
+def main() -> None:
     try:
         logger.info('Fetching sky coordinates from the raw data sources...')
         start = time.time()

@@ -51,7 +51,7 @@ INT_CONVERTER = {
 
 # Grab veldisp offsets
 # try:
-#     totoff = pd.read_csv(os.path.join(ROOT_PATH, '/artifacts/veldisp_calibration/totoffs.csv'))
+#     totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
 #     off_6df = totoff.loc[0, ['off_6df']].values[0]
 #     off_sdss = totoff.loc[0, ['off_sdss']].values[0]
 #     off_lamost = totoff.loc[0, ['off_lamost']].values[0]

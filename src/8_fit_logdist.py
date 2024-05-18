@@ -65,7 +65,7 @@ mag_high = 13.65
 zmin = 3000.0 / LIGHTSPEED
 zmax = 16120. / LIGHTSPEED
 
-def fit_logdist():
+def fit_logdist() -> None:
     """
     This is a function to calculate the log-distance ratio posteriors and obtain summary statistics.
     Summary statistics are obtained using two methods: direct calculation assuming skew-normal and 
@@ -154,7 +154,7 @@ def fit_logdist():
         # Save the new dataframe
         df.to_csv(LOGDIST_OUTPUT_FILEPATH[survey], index=False)
 
-def compare_cf_vs_formula():
+def compare_cf_vs_formula() -> None:
     """
     This function compares the mean and std obtained using analytical formula and the one obtained from scipy's curve_fit.
     """
@@ -174,7 +174,7 @@ def compare_cf_vs_formula():
 
         plt.savefig(CURVEFIT_COMPARISON_IMG_FILEPATH[survey], dpi=300)
 
-def plot_best_worst_posterior():
+def plot_best_worst_posterior() -> None:
     """
     This function compares the least and most skewed posterior distributions.
     """
@@ -210,7 +210,7 @@ def plot_best_worst_posterior():
 
         plt.savefig(POSTERIOR_SKEWNESS_IMG_FILEPATH[survey], dpi=300)
 
-def main():
+def main() -> None:
     try:
         logger.info(f"{'=' * 50}")
         logger.info('Fitting log-distance ratios...')

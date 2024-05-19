@@ -19,6 +19,14 @@ SURVEY_LIST = ['6dFGS', 'SDSS', 'LAMOST']
 
 # Speed of light (km/s)
 LIGHTSPEED = 299792.458
+# Matter density parameter
+OMEGA_M = 0.3121
+
+# Sample selection constants
+MAG_LOW = 8.0
+MAG_HIGH = 13.65
+ZMIN = 3000.0 / LIGHTSPEED
+ZMAX = 16120. / LIGHTSPEED
 
 # Galactic extinction constants in the JHK bands (Schlafly and Finkbeiner)
 EXTINCTION_CONSTANT = {
@@ -87,8 +95,30 @@ SURVEY_VELDISP_LIMIT = {
     }
 }
 
+# Define the FP setting to derive galaxy's logdists
+SURVEY_FP_SETTING = {
+    # Default: use each survey's own FP fit
+    0: {
+        '6dFGS': '6dFGS',
+        'SDSS': 'SDSS',
+        'LAMOST': 'LAMOST'
+    },
+    # First setting: use 6dFGS FP for all
+    1: {
+        '6dFGS': '6dFGS',
+        'SDSS': '6dFGS',
+        'LAMOST': '6dFGS'
+    },
+    # Second setting: use SDSS FP for all
+    2: {
+        '6dFGS': 'SDSS',
+        'SDSS': 'SDSS',
+        'LAMOST': 'SDSS'
+    }
+}
+
 # Function to create parent folder, given a full absolute path as dictionary or string
-def create_parent_folder(full_abspath):
+def create_parent_folder(full_abspath) -> None:
     if isinstance(full_abspath, dict):
         for filepath in full_abspath.values():
             output_filepath = Path(filepath)

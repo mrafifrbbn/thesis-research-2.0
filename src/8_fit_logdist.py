@@ -16,6 +16,7 @@ load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
+FP_SETTING = int(os.environ.get('FP_SETTING'))
 
 # Create logging instance
 logger = get_logger('fit_logdist')
@@ -30,40 +31,32 @@ OUTLIER_REJECT_FILEPATH = {
 FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
 
 LOGDIST_POSTERIOR_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/6dfgs_logdist_posterior.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/sdss_logdist_posterior.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/lamost_logdist_posterior.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_posterior.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_posterior.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_posterior.npy')
 }
 create_parent_folder(LOGDIST_POSTERIOR_OUTPUT_FILEPATH)
 
 LOGDIST_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/lamost.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.csv')
 }
 create_parent_folder(LOGDIST_OUTPUT_FILEPATH)
 
 CURVEFIT_COMPARISON_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.png')
 }
 create_parent_folder(CURVEFIT_COMPARISON_IMG_FILEPATH)
 
 POSTERIOR_SKEWNESS_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_skewness.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_skewness.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost_skewness.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_skewness.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_skewness.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_skewness.png')
 }
 create_parent_folder(POSTERIOR_SKEWNESS_IMG_FILEPATH)
-
-# Sample selection constants
-# The magnitude limit and velocity dispersion limits (very important!), and Omega_m (less important)
-omega_m = 0.3121
-mag_low = 8.0
-mag_high = 13.65
-zmin = 3000.0 / LIGHTSPEED
-zmax = 16120. / LIGHTSPEED
 
 def fit_logdist() -> None:
     """
@@ -82,7 +75,7 @@ def fit_logdist() -> None:
         df = pd.read_csv(OUTLIER_REJECT_FILEPATH[survey])
         dz = sp.interpolate.splev(df["z_cmb"].to_numpy()/LightSpeed, dist_spline)
         dz_cluster = sp.interpolate.splev(df["z_dist_est"], dist_spline)
-        FPparams = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[survey].to_numpy()
+        FPparams = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[SURVEY_FP_SETTING[FP_SETTING][survey]].to_numpy()
         logger.info(f'Number of {survey} data = {len(df)}. FP best fits = {FPparams}')
 
         # Fit the logdistance ratios (range tested and number of points)
@@ -92,8 +85,8 @@ def fit_logdist() -> None:
         # Calculate F_n (main part basically)
         d_H = np.outer(10.0**(-dbins), dz_cluster)
         z_H = sp.interpolate.splev(d_H, red_spline, der=0)
-        lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
-        lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
+        lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_HIGH) / 5.0
+        lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_LOW) / 5.0
         loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, sumgals=False)
         start = time.time()
         FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
@@ -214,7 +207,7 @@ def main() -> None:
     try:
         logger.info(f"{'=' * 50}")
         logger.info('Fitting log-distance ratios...')
-        logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}.')
+        logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}. FP_SETTING = {FP_SETTING}.')
         
         fit_logdist()
 

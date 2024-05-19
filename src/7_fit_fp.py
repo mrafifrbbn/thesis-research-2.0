@@ -22,6 +22,8 @@ load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
+# Add new data combinations here
+NEW_SURVEY_LIST = (SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')
@@ -29,13 +31,15 @@ logger = get_logger('fit_fp')
 INPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv')
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
 OUTLIER_REJECT_OUTPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/lamost.csv')
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
 
@@ -45,7 +49,8 @@ create_parent_folder(FP_FIT_FILEPATH)
 MCMC_CHAIN_OUTPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_chain.npy'),
     'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy')
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/all_combined_chain.npy')
 }
 create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
 
@@ -55,16 +60,10 @@ create_parent_folder(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH)
 LIKELIHOOD_DIST_IMG_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs.png'),
     'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png')
+    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/all_combined.png')
 }
 
-# Sample selection constants
-# The magnitude limit and velocity dispersion limits (very important!), and Omega_m (less important)
-omega_m = 0.3121
-mag_low = 8.0
-mag_high = 13.65
-zmin = 3000.0 / LIGHTSPEED
-zmax = 16120. / LIGHTSPEED
 
 def fit_FP() -> None:
     # Set global random seed
@@ -73,7 +72,7 @@ def fit_FP() -> None:
     # List to store FP parameters
     FP_params = []
     
-    for survey in SURVEY_LIST:
+    for survey in NEW_SURVEY_LIST:
         logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
         df = pd.read_csv(INPUT_FILEPATH[survey])
 
@@ -81,7 +80,10 @@ def fit_FP() -> None:
         pvals_cut = 0.01
 
         # Velocity dispersion lower limit
-        smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+        if survey == 'ALL_COMBINED':
+            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
+        else:
+            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
@@ -89,13 +91,13 @@ def fit_FP() -> None:
         dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
 
         # (1+z) factor because we use luminosity distance
-        Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
-        Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
-        # Maximum (luminosity) distance the galaxy can be observed given mag_high (survey limiting magnitude)
-        Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
+        Vmin = (1.0 + ZMIN)**3 * sp.interpolate.splev(ZMIN, dist_spline)**3
+        Vmax = (1.0 + ZMAX)**3 * sp.interpolate.splev(ZMAX, dist_spline)**3
+        # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
+        Dlim = 10.0**((MAG_HIGH - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
         # Find the corresponding maximum redshift
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
-        Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+        Sn = np.where(zlim >= ZMAX, 1.0, np.where(zlim <= ZMIN, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
         
         # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
         data_fit = df
@@ -106,10 +108,10 @@ def fit_FP() -> None:
         
         while not is_converged:
             dz_cluster_fit = sp.interpolate.splev(data_fit["z_dist_est"].to_numpy(), dist_spline)
-            Dlim = 10.0**((mag_high - (data_fit["j_m_ext"]-data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0*np.log10(1.0 + data_fit["zhelio"]))/5.0)
+            Dlim = 10.0**((MAG_HIGH - (data_fit["j_m_ext"]-data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0*np.log10(1.0 + data_fit["zhelio"]))/5.0)
             zlim = sp.interpolate.splev(Dlim, lumred_spline)
 
-            Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+            Snfit = np.where(zlim >= ZMAX, 1.0, np.where(zlim <= ZMIN, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
 
             # The range of the FP parameters' values
             avals, bvals = (1.0, 1.8), (-1.0, -0.5)
@@ -157,14 +159,16 @@ def fit_FP() -> None:
         FP_params.append(FPparams.x)
         
         # Save the cleaned sample
+        logger.info(f'Saving outlier-rejected sample...')
         df = data_fit
         df.to_csv(OUTLIER_REJECT_OUTPUT_FILEPATH[survey], index=False)
         logger.info('\n')
         
     # Convert the FP parameters to dataframe and save to artifacts folder
+    logger.info("Saving the derived FP fits to artifacts folder...")
     FP_params = np.array(FP_params)
     FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-    pd.DataFrame(FP_params, columns=FP_columns, index=SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
+    pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
 
 def sample_likelihood() -> None:
     # The log-prior function for the FP parameters
@@ -184,7 +188,7 @@ def sample_likelihood() -> None:
         else:
             return lp - FP_func(theta, 0., z, r, s, i, dr, ds, di, Sn, smin, sumgals=True, chi_squared_only=False)
     
-    for survey in SURVEY_LIST:
+    for survey in NEW_SURVEY_LIST:
         # Load the outlier-rejected data
         df = pd.read_csv(OUTLIER_REJECT_OUTPUT_FILEPATH[survey])
 
@@ -199,7 +203,10 @@ def sample_likelihood() -> None:
         A_j = df['extinction_j'].to_numpy()
 
         # Velocity dispersion lower limit
-        smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+        if survey == 'ALL_COMBINED':
+            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
+        else:
+            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
@@ -207,13 +214,13 @@ def sample_likelihood() -> None:
         dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0) 
 
         # (1+z) factor because we use luminosity distance
-        Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
-        Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
-        # Maximum (luminosity) distance the galaxy can be observed given mag_high (survey limiting magnitude)
-        Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
+        Vmin = (1.0 + ZMIN)**3 * sp.interpolate.splev(ZMIN, dist_spline)**3
+        Vmax = (1.0 + ZMAX)**3 * sp.interpolate.splev(ZMAX, dist_spline)**3
+        # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
+        Dlim = 10.0**((MAG_HIGH - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
         # Find the corresponding maximum redshift
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
-        Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+        Sn = np.where(zlim >= ZMAX, 1.0, np.where(zlim <= ZMIN, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
 
         # Load the best-fit parameters
         FP_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[survey].to_numpy()
@@ -302,7 +309,7 @@ def fit_likelihood() -> None:
         fig.tight_layout(pad=1.0)
     
     N = 50
-    for survey in SURVEY_LIST:
+    for survey in NEW_SURVEY_LIST:
         logger.info(f"Fitting the FP likelihood of {survey}")
         post_dist = np.load(MCMC_CHAIN_OUTPUT_FILEPATH[survey]).T
         posteriors = {
@@ -319,10 +326,7 @@ def fit_likelihood() -> None:
         fp_paramname_list = ['a', 'b', 'rmean', 'smean', 'imean', 'sigma1', 'sigma2', 'sigma3']
         fp_labelname_list = [r'$a$', r'$b$', r'$\bar{r}$', r'$\bar{s}$', r'$\bar{\imath}$', r'$\sigma_1$', r'$\sigma_2$', r'$\sigma_3$']
         
-        golden_ratio = 1.618
-        height = 8
-        
-        fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(golden_ratio * height, height))
+        fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(GOLDEN_RATIO * 8, 8))
         fig.delaxes(fig.axes[2])
         
         for idx, ax in enumerate(fig.axes):
@@ -335,12 +339,12 @@ def main() -> None:
         logger.info(f'{"=" * 50}')
         logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')
         logger.info(f'Sample selection constants:')
-        logger.info(f'omega_m = {omega_m}')
+        logger.info(f'OMEGA_M = {OMEGA_M}')
         logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
-        logger.info(f'mag_low = {mag_low}')
-        logger.info(f'mag_high = {mag_high}')
-        logger.info(f'zmin = {zmin}')
-        logger.info(f'zmax = {zmax}')
+        logger.info(f'MAG_LOW = {MAG_LOW}')
+        logger.info(f'MAG_HIGH = {MAG_HIGH}')
+        logger.info(f'ZMIN = {ZMIN}')
+        logger.info(f'ZMAX = {ZMAX}')
         fit_FP()
         
         sample_likelihood()

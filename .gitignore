@@ -28,6 +28,8 @@ data/processed/rsi_derived/*.csv
 artifacts/logdist/*
 src/mocks/*
 
+*.npy
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

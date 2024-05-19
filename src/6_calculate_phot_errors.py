@@ -36,7 +36,8 @@ INPUT_FILEPATH = {
 OUTPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv')
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTPUT_FILEPATH)
 
@@ -152,17 +153,37 @@ def apply_phot_error(popt: np.ndarray) -> None:
         df['er_j'] = 0.5 * df['ei_j']
         df = df[REQ_COLS[survey]].rename({'r_j': 'r', 'er_j': 'er', 's_scaled': 's', 'es_scaled': 'es', 'i_j': 'i', 'ei_j': 'ei'}, axis=1)
         df.to_csv(OUTPUT_FILEPATH[survey], index=False)
-        
+
+def combine_all() -> None:
+    # Create empty dataframe
+    df = pd.DataFrame()
+    # Combine FP samples of all survey into a single sample
+    for filepath in list(OUTPUT_FILEPATH.values())[:-1]:
+        data = pd.read_csv(filepath)
+        df = pd.concat([df, data])
+    # Drop duplicate measurements and keep the first (should be 6dFGS > SDSS > LAMOST)
+    count_ = len(df)
+    logger.info(f"Number of combined galaxies = {count_}.")
+    df = df.drop_duplicates(subset='tmass')
+    logger.info(f"Number of unique galaxies = {len(df)}. Galaxies dropped = {count_ - len(df)}.")
+
+    df.to_csv(OUTPUT_FILEPATH['ALL_COMBINED'], index=False)
+
 def main() -> None:
     try:
         logger.info(f"{'=' * 100}")
-        logger.info("Deriving photometric errors...")
+        logger.info(f"Deriving photometric errors. SMIN_SETTING = {SMIN_SETTING}.")
         popt = derive_phot_error()
         logger.info("Deriving photometric errors successful!")
         
         logger.info("Applying photometric errors and selecting the final columns...")
         apply_phot_error(popt)
         logger.info("Applying photometric errors and selecting the final columns successful!")
+
+        if SMIN_SETTING==1:
+            logger.info("Combining all galaxies into a single sample...")
+            combine_all()
+            logger.info("Combining all galaxies into a single sample successful!")
         logger.info('\n')
     except Exception as e:
         logger.error(f'Deriving photometric errors failed. Reason: {e}.')

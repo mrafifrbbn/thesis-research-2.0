@@ -101,19 +101,22 @@ SURVEY_FP_SETTING = {
     0: {
         '6dFGS': '6dFGS',
         'SDSS': 'SDSS',
-        'LAMOST': 'LAMOST'
+        'LAMOST': 'LAMOST',
+        'ALL_COMBINED': 'ALL_COMBINED'
     },
     # First setting: use 6dFGS FP for all
     1: {
         '6dFGS': '6dFGS',
         'SDSS': '6dFGS',
-        'LAMOST': '6dFGS'
+        'LAMOST': '6dFGS',
+        'ALL_COMBINED': '6dFGS'
     },
     # Second setting: use SDSS FP for all
     2: {
         '6dFGS': 'SDSS',
         'SDSS': 'SDSS',
-        'LAMOST': 'SDSS'
+        'LAMOST': 'SDSS',
+        'ALL_COMBINED': 'SDSS'
     }
 }
 

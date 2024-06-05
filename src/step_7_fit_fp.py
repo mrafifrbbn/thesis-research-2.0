@@ -73,126 +73,106 @@ PVALS_CUT = 0.01
 REJECT_OUTLIERS = True
 
 def fit_FP(
-    survey_list: List[str] = NEW_SURVEY_LIST,
-    input_filepath: Dict[str, str] = INPUT_FILEPATH,
+    survey: str,
+    input_filepath: str,
+    outlier_output_filepath: str,
+    smin: float,
     pvals_cut: float = PVALS_CUT,
-    smin_setting: int = SMIN_SETTING,
-    survey_veldisp_limit: Dict[str, float] = SURVEY_VELDISP_LIMIT,
     zmin: float = ZMIN,
     zmax: float = ZMAX,
     mag_high: float = MAG_HIGH,
-    reject_outliers: bool = REJECT_OUTLIERS,
-    outlier_output_filepath: Dict[str, str] = OUTLIER_REJECT_OUTPUT_FILEPATH,
-    fp_fit_output_filepath: str = FP_FIT_FILEPATH
-          ) -> None:
+    reject_outliers: bool = REJECT_OUTLIERS
+          ) -> np.ndarray:
     
     # Set global random seed
     np.random.seed(42)
     
-    # List to store FP parameters
-    FP_params = []
+    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
+    df = pd.read_csv(input_filepath)
     
-    for survey in survey_list:
-        logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
-        df = pd.read_csv(input_filepath[survey])
-        
-        # Re-apply the magnitude limit
-        df = df[(df['j_m_ext'] - df['extinction_j']) <= mag_high]
+    # Re-apply the magnitude limit
+    df = df[(df['j_m_ext'] - df['extinction_j']) <= mag_high]
 
-        # Velocity dispersion lower limit
-        if survey == 'ALL_COMBINED':
-            smin = survey_veldisp_limit[smin_setting]['6dFGS']
-        else:
-            smin = survey_veldisp_limit[smin_setting][survey]
+    # Get some redshift-distance lookup tables
+    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
+    # The comoving distance to each galaxy using group redshift as distance indicator
+    dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
 
-        # Get some redshift-distance lookup tables
-        red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-        # The comoving distance to each galaxy using group redshift as distance indicator
-        dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
-
-        # (1+z) factor because we use luminosity distance
-        Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
-        Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
-        # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
-        Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
-        # Find the corresponding maximum redshift
+    # (1+z) factor because we use luminosity distance
+    Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
+    Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
+    # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
+    Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
+    # Find the corresponding maximum redshift
+    zlim = sp.interpolate.splev(Dlim, lumred_spline)
+    Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+    
+    # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
+    data_fit = df
+    badcount = len(df)
+    # logger.info(len(data_fit), badcount)
+    is_converged = False
+    i = 1
+    
+    while not is_converged:
+        dz_cluster_fit = sp.interpolate.splev(data_fit["z_dist_est"].to_numpy(), dist_spline)
+        Dlim = 10.0**((mag_high - (data_fit["j_m_ext"]-data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0*np.log10(1.0 + data_fit["zhelio"])) / 5.0)
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
-        Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+
+        Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+
+        # The range of the FP parameters' values
+        avals, bvals = (1.0, 1.8), (-1.0, -0.5)
+        rvals, svals, ivals = (-0.5, 0.5), (2.0, 2.5), (3.0, 3.5)
+        s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.1, 0.3)
+
+        # Fit the FP parameters
+        FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
+            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6)
+        # Calculate the chi-squared 
+        chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, sumgals=False, chi_squared_only=True)[0]
+
+        # Calculate the p-value (x,dof)
+        pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
+        # Reject galaxies with p-values < pvals_cut
+        data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
+        # Count the number of rejected galaxies
+        badcountnew = len(np.where(pvals < pvals_cut)[0])
+        # Converged if the number of rejected galaxies in this iteration is the same as previous iteration
+        is_converged = True if badcount == badcountnew else False
+
+        # logger.info verbose
+        logger.info(f"{'-' * 10} Iteration {i} {'-' * 10}")
+        logger.info(FPparams.x.tolist())
+        a_fit, b_fit, rmean_fit, smean_fit, imean_fit, s1_fit, s2_fit, s3_fit = FPparams.x
+        logger.info(f"a = {round(a_fit, 5)}")
+        logger.info(f"b = {round(b_fit, 5)}")
+        logger.info(f"rmean = {round(rmean_fit, 5)}")
+        logger.info(f"smean = {round(smean_fit, 5)}")
+        logger.info(f"imean = {round(imean_fit, 5)}")
+        logger.info(f"s1 = {round(s1_fit, 5)}")
+        logger.info(f"s2 = {round(s2_fit, 5)}")
+        logger.info(f"s3 = {round(s3_fit, 5)}")
+        logger.info(f"Data count = {len(data_fit)}")
+        logger.info(f"Chi-squared = {sp.stats.chi2.isf(0.01, np.sum(chi_squared)/(len(df) - 8.0))}")
+        logger.info(f"Outlier count = {badcount}")
+        logger.info(f"New outlier count = {badcountnew}")
+        logger.info(f"Converged = {is_converged}")
         
-        # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
-        data_fit = df
-        badcount = len(df)
-        # logger.info(len(data_fit), badcount)
-        is_converged = False
-        i = 1
+        # Set the new count of rejected galaxies
+        badcount = badcountnew
+        i += 1
         
-        while not is_converged:
-            dz_cluster_fit = sp.interpolate.splev(data_fit["z_dist_est"].to_numpy(), dist_spline)
-            Dlim = 10.0**((mag_high - (data_fit["j_m_ext"]-data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0*np.log10(1.0 + data_fit["zhelio"]))/5.0)
-            zlim = sp.interpolate.splev(Dlim, lumred_spline)
+        # Break from the loop if reject_outliers is set to false
+        if reject_outliers == False:
+            break
 
-            Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
-
-            # The range of the FP parameters' values
-            avals, bvals = (1.0, 1.8), (-1.0, -0.5)
-            rvals, svals, ivals = (-0.5, 0.5), (2.0, 2.5), (3.0, 3.5)
-            s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.1, 0.3)
-
-            # Fit the FP parameters
-            FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-			    args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6)
-            # Calculate the chi-squared 
-            chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, sumgals=False, chi_squared_only=True)[0]
-
-            # Calculate the p-value (x,dof)
-            pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
-            # Reject galaxies with p-values < pvals_cut
-            data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
-            # Count the number of rejected galaxies
-            badcountnew = len(np.where(pvals < pvals_cut)[0])
-            # Converged if the number of rejected galaxies in this iteration is the same as previous iteration
-            is_converged = True if badcount == badcountnew else False
-
-            # logger.info verbose
-            logger.info(f"{'-' * 10} Iteration {i} {'-' * 10}")
-            logger.info(FPparams.x.tolist())
-            a_fit, b_fit, rmean_fit, smean_fit, imean_fit, s1_fit, s2_fit, s3_fit = FPparams.x
-            logger.info(f"a = {round(a_fit, 5)}")
-            logger.info(f"b = {round(b_fit, 5)}")
-            logger.info(f"rmean = {round(rmean_fit, 5)}")
-            logger.info(f"smean = {round(smean_fit, 5)}")
-            logger.info(f"imean = {round(imean_fit, 5)}")
-            logger.info(f"s1 = {round(s1_fit, 5)}")
-            logger.info(f"s2 = {round(s2_fit, 5)}")
-            logger.info(f"s3 = {round(s3_fit, 5)}")
-            logger.info(f"Data count = {len(data_fit)}")
-            logger.info(f"Chi-squared = {sp.stats.chi2.isf(0.01, np.sum(chi_squared)/(len(df) - 8.0))}")
-            logger.info(f"Outlier count = {badcount}")
-            logger.info(f"New outlier count = {badcountnew}")
-            logger.info(f"Converged = {is_converged}")
-            
-            # Set the new count of rejected galaxies
-            badcount = badcountnew
-            i += 1
-            
-            # Break from the loop if reject_outliers is set to false
-            if reject_outliers == False:
-                break
-
-        # Store the FP parameters
-        FP_params.append(FPparams.x)
-        
-        # Save the cleaned sample
-        logger.info(f'Saving outlier-rejected sample...')
-        df = data_fit
-        df.to_csv(outlier_output_filepath[survey], index=False)
-        logger.info('\n')
-        
-    # Convert the FP parameters to dataframe and save to artifacts folder
-    logger.info("Saving the derived FP fits to artifacts folder...")
-    FP_params = np.array(FP_params)
-    FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-    pd.DataFrame(FP_params, columns=FP_columns, index=survey_list).to_csv(fp_fit_output_filepath)
+    # Save the cleaned sample
+    logger.info(f'Saving outlier-rejected sample...')
+    df = data_fit
+    df.to_csv(outlier_output_filepath, index=False)
+    
+    return FPparams.x
 
 def sample_likelihood() -> None:
     # The log-prior function for the FP parameters
@@ -394,25 +374,53 @@ def calculate_fp_scatter() -> None:
 
 def main() -> None:
     try:
-        # logger.info(f'{"=" * 50}')
-        # logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')
-        # logger.info(f'Sample selection constants:')
-        # logger.info(f'OMEGA_M = {OMEGA_M}')
-        # logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
-        # logger.info(f'MAG_LOW = {MAG_LOW}')
-        # logger.info(f'MAG_HIGH = {MAG_HIGH}')
-        # logger.info(f'ZMIN = {ZMIN}')
-        # logger.info(f'ZMAX = {ZMAX}')
-        # fit_FP()
-        
-        # logger.info("Sampling the likelihood with MCMC...")
-        # sample_likelihood()
-        
-        # logger.info("Generating corner plot...")
-        # generate_corner_plot()
+        logger.info(f'{"=" * 50}')
+        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')
+        logger.info(f'Sample selection constants:')
+        logger.info(f'OMEGA_M = {OMEGA_M}')
+        logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
+        logger.info(f'MAG_LOW = {MAG_LOW}')
+        logger.info(f'MAG_HIGH = {MAG_HIGH}')
+        logger.info(f'ZMIN = {ZMIN}')
+        logger.info(f'ZMAX = {ZMAX}')
 
-        # logger.info("Fitting the marginalized distributions with Gaussian...")
-        # fit_likelihood()
+        # Fit the FP for each survey
+        FP_params = []
+        for survey in NEW_SURVEY_LIST:
+            # Get input filepath
+            input_filepath = INPUT_FILEPATH[survey]
+
+            # Get output filepath
+            output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
+
+            # Velocity dispersion lower limit
+            if survey == 'ALL_COMBINED':
+                smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
+            else:
+                smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+
+            params = fit_FP(
+                survey=survey,
+                input_filepath=input_filepath,
+                outlier_output_filepath=output_filepath,
+                smin=smin
+            )
+            FP_params.append(params)
+        
+        # Convert the FP parameters to dataframe and save to artifacts folder
+        logger.info("Saving the derived FP fits to artifacts folder...")
+        FP_params = np.array(FP_params)
+        FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
+        pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
+        
+        logger.info("Sampling the likelihood with MCMC...")
+        sample_likelihood()
+        
+        logger.info("Generating corner plot...")
+        generate_corner_plot()
+
+        logger.info("Fitting the marginalized distributions with Gaussian...")
+        fit_likelihood()
 
         logger.info("Calculating the FP scatter...")
         calculate_fp_scatter()

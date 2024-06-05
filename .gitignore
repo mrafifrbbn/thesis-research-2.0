@@ -26,6 +26,7 @@ data/preprocessed/spectrophoto/*.csv
 data/processed/rsi_derived/*.csv
 
 artifacts/logdist/*
+*.npy
 src/mocks/*
 
 *.npy

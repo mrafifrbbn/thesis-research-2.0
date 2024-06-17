@@ -57,6 +57,14 @@ INT_CONVERTER = {
     3: 'third'
 }
 
+# Completeness plot
+DEFAULT_MARKERSTYLES = {
+    "6dFGS": "v",
+    "SDSS": "s",
+    "LAMOST": "D"
+}
+COMPLETENESS_BIN_WIDTH = 0.15
+
 # Grab veldisp offsets
 # try:
 #     totoff = pd.read_csv(os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv'))
@@ -129,3 +137,18 @@ def create_parent_folder(full_abspath) -> None:
     elif isinstance(full_abspath, str):
         output_filepath = Path(full_abspath)
         output_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+# Linear + parabola for magnitude count
+def completeness_linear_parabola(x, beta, x0, b, alpha=0.6):
+    a = (alpha - b) / (2 * x0)
+    y_pred = np.piecewise(
+        x,
+        [x <= x0, x > x0],
+        [lambda x: alpha * x + beta, lambda x: ((alpha - b) / (2 * x0)) * x**2 + b * x + 0.5 * (alpha - b) * x0 + beta]
+    )
+    return y_pred
+
+# Only linear (for LAMOST)
+def completeness_linear(x, beta, alpha=0.6):
+    y_pred = alpha * x + beta
+    return y_pred

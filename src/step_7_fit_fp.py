@@ -5,6 +5,7 @@ import pandas as pd
 import scipy as sp
 from scipy.stats import norm
 from scipy.optimize import curve_fit
+from matplotlib import cm, ticker
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -23,6 +24,7 @@ load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
+COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
 # Add new data combinations here
 NEW_SURVEY_LIST = (SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
@@ -36,47 +38,178 @@ INPUT_FILEPATH = {
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
+COMPLETENESS_ARTIFACT_PATH = os.path.join(ROOT_PATH, f"artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness.csv")
+create_parent_folder(COMPLETENESS_ARTIFACT_PATH)
+
+COMPLETENESS_IMAGE_PATH = os.path.join(ROOT_PATH, f"img/fp_fit/smin_setting_{SMIN_SETTING}/completeness.png")
+create_parent_folder(COMPLETENESS_IMAGE_PATH)
+
 OUTLIER_REJECT_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/lamost.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/all_combined.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
 
-FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
+FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_fits.csv')
 create_parent_folder(FP_FIT_FILEPATH)
 
 MCMC_CHAIN_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_chain.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/all_combined_chain.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs_chain.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss_chain.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost_chain.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined_chain.npy')
 }
 create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
 
-LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/three_surveys_likelihood.png')
+LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/three_surveys_likelihood.png')
 create_parent_folder(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH)
 
 LIKELIHOOD_DIST_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/all_combined.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined.png')
 }
 
-FP_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_scatter.csv')
+FP_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_scatter.csv')
 create_parent_folder(FP_SCATTER_FILEPATH)
 
 # User-defined variables
 PVALS_CUT = 0.01
 REJECT_OUTLIERS = True
 
+def model_completeness(
+    surveys: List[str] = SURVEY_LIST,
+    markerstyles_: Dict[str, str] = DEFAULT_MARKERSTYLES,
+    lower_mag: float = MAG_LOW,
+    upper_mag: float = MAG_HIGH,
+    bin_width: float = COMPLETENESS_BIN_WIDTH,
+    p_val_reject: float = 0.01,
+    artifact_filepath: str = COMPLETENESS_ARTIFACT_PATH,
+    image_filepath: str = COMPLETENESS_IMAGE_PATH
+):
+    model_params = []
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(FIGURE_WIDTH * 2, FIGURE_HEIGHT))
+    for survey in surveys:
+        filepath = INPUT_FILEPATH.get(survey)
+        df = pd.read_csv(filepath)
+
+        # Extinction-corrected magnitude
+        df['mag_j'] = df['j_m_ext'] - df['extinction_j']
+
+        # Create magnitude histogram
+        bins_ = np.arange(lower_mag, upper_mag + bin_width, bin_width)
+        labels_ = [i for i in range(1, len(bins_))]
+        df['mag_bin'] = pd.cut(df['mag_j'], bins_, labels=labels_)
+
+        # Count each bin
+        df_grouped = df[['mag_bin', 'mag_j']].groupby(by='mag_bin', observed=False).agg(
+            N=('mag_bin', 'count'),
+            mag_mean=('mag_j', 'mean')
+        )
+        df_grouped['log_N'] = np.log10(df_grouped['N'])
+        df_grouped = df_grouped[df_grouped['log_N'] > 0]
+
+        # Fit the function iteratively
+        x_data = df_grouped['mag_mean'].to_numpy()
+        y_data = df_grouped['log_N'].to_numpy()
+
+        # Remove outliers
+#         mask = x_data > 10.5
+#         x_data = x_data[mask][:-1]
+#         y_data = y_data[mask][:-1]
+
+        datacount = len(y_data)
+        is_converged = False
+        i = 1
+        while not is_converged:
+            # Fit the parameters
+            if survey != "LAMOST":
+                # Fit linear+parabola model for 6dFGS and SDSS
+                popt, pcov = curve_fit(completeness_linear_parabola, x_data, y_data, p0=[-4.5, 11.5, 5])
+            else:
+                # Fit linear model for LAMOST
+                popt, pcov = curve_fit(completeness_linear, x_data, y_data, p0=[-4.5])
+
+            # Calculate the predicted values and chi statistics
+            if survey != "LAMOST":
+                y_pred = completeness_linear_parabola(x_data, *popt)
+            else:
+                y_pred = completeness_linear(x_data, *popt)
+            chisq = ((y_data - y_pred) / y_pred)**2
+
+            # Reject the 'bad' data (chisq > 0.5)
+            bad_data_indices = chisq > p_val_reject
+            x_data = x_data[~bad_data_indices]
+            y_data = y_data[~bad_data_indices]
+            datacount_new = len(y_data)
+
+            is_converged = True if datacount == datacount_new else False
+            datacount = datacount_new
+            i += 1
+
+        # Save survey completeness parameter
+        model_params.append(popt)
+
+        # Create expected and fitted lines
+        if survey != "LAMOST":
+            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear_parabola(x, *popt))
+        else:
+            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear(x, *popt))
+
+        df_grouped["N_expected"] = 10 ** (0.6 * df_grouped["mag_mean"] + popt[0])
+        df_grouped["completeness"] = 100 * df_grouped["N"] / df_grouped["N_expected"]
+        df_grouped["completeness_model"] = 100 * df_grouped["N_model"] / df_grouped["N_expected"]
+
+        # First plot: log N vs magnitude
+        ax1.scatter(df_grouped['mag_mean'], df_grouped['log_N'], marker=markerstyles_[survey], label=survey)
+        ax1.plot(df_grouped["mag_mean"], np.log10(df_grouped['N_model']), color='red')#, label='linear+parabola')
+
+        ax1.set_title(f"Differential count", fontsize=14)
+        ax1.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+        ax1.set_ylabel(r'$\log N\ (\mathrm{deg}^{-2}\ \mathrm{mag}^{-1})$', fontsize=14)
+        ax1.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        ax1.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+        ax1.tick_params(axis='both', length=7.5, direction='in')
+        ax1.tick_params(which='minor', length=2.5, direction='in')
+        ax1.legend(fontsize=15)
+        ax1.grid(alpha=0.5, ls=':')
+
+        # Second plot: completeness (%) vs magnitude)
+        ax2.scatter(df_grouped["mag_mean"], df_grouped["completeness"], marker=markerstyles_[survey], label=survey)
+        ax2.plot(df_grouped["mag_mean"], df_grouped["completeness_model"], color='red')
+        ax2.axhline(y=100., color='k', ls='--')
+
+        ax2.set_title(f"Magnitude completeness", fontsize=14)
+        ax2.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+        ax2.set_ylabel(r'completeness (%)', fontsize=14)
+        ax2.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        ax2.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+        ax2.tick_params(axis='both', length=7.5, direction='in')
+        ax2.tick_params(which='minor', length=2.5, direction='in')
+        ax2.legend(fontsize=15)
+        ax2.grid(alpha=0.5, ls=':')
+        ax2.set_ylim(0, 140.)
+        
+        plt.savefig(image_filepath, dpi=300)
+        
+    pd.DataFrame(model_params, index=SURVEY_LIST, columns=['beta', 'x0', 'b']).to_csv(artifact_filepath)
+
+def calculate_completeness(mag, model_params):
+    N_expected = 10 ** (0.6 * mag + model_params[0])
+    N_model = 10 ** completeness_linear_parabola(mag, *model_params)
+    completeness = N_model / N_expected
+    return completeness
+
 def fit_FP(
     survey: str,
     input_filepath: str,
     outlier_output_filepath: str,
     smin: float,
+    use_completeness_model: bool = False,
+    completeness_model_filepath: str = None,
     pvals_cut: float = PVALS_CUT,
     zmin: float = ZMIN,
     zmax: float = ZMAX,
@@ -107,6 +240,16 @@ def fit_FP(
     zlim = sp.interpolate.splev(Dlim, lumred_spline)
     Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
     
+    # Obtain completeness at each magnitude
+    df['C_m'] = 1
+    if use_completeness_model:
+        if survey in ['6dFGS', 'SDSS']:
+            model_params = pd.read_csv(completeness_model_filepath, index_col=0).loc[survey].to_numpy()
+            df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+
+    # Apply the correction for missing galaxies
+    Sn = Sn * df['C_m'].to_numpy()
+
     # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
     data_fit = df
     badcount = len(df)
@@ -116,10 +259,10 @@ def fit_FP(
     
     while not is_converged:
         dz_cluster_fit = sp.interpolate.splev(data_fit["z_dist_est"].to_numpy(), dist_spline)
-        Dlim = 10.0**((mag_high - (data_fit["j_m_ext"]-data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0*np.log10(1.0 + data_fit["zhelio"])) / 5.0)
+        Dlim = 10.0**((mag_high - (data_fit["j_m_ext"] - data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0 * np.log10(1.0 + data_fit["zhelio"])) / 5.0)
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
 
-        Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+        Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin))) * data_fit['C_m'].to_numpy()
 
         # The range of the FP parameters' values
         avals, bvals = (1.0, 1.8), (-1.0, -0.5)
@@ -226,6 +369,16 @@ def sample_likelihood() -> None:
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
         Sn = np.where(zlim >= ZMAX, 1.0, np.where(zlim <= ZMIN, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
 
+        # Obtain completeness at each magnitude
+        df['C_m'] = 1
+        if COMPLETENESS_SETTING:
+            if survey in ['6dFGS', 'SDSS']:
+                model_params = pd.read_csv(COMPLETENESS_ARTIFACT_PATH, index_col=0).loc[survey].to_numpy()
+                df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+
+        # Apply the correction for missing galaxies
+        Sn = Sn * df['C_m'].to_numpy()
+
         # Load the best-fit parameters
         FP_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[survey].to_numpy()
 
@@ -253,14 +406,17 @@ def generate_corner_plot() -> None:
     # 6dFGS data (mocks and previous values)
     samples_6df = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['6dFGS'])
     prev_vals_6df = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['6dFGS'].to_numpy()
+    logger.info(f"Best fit values for 6dFGS: {prev_vals_6df}")
 
     # SDSS data (mocks and previous values)
     samples_sdss = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['SDSS'])
     prev_vals_sdss = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['SDSS'].to_numpy()
+    logger.info(f"Best fit values for SDSS: {prev_vals_sdss}")
 
     # LAMOST data (mocks and previous values)
     samples_lamost = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['LAMOST'])
     prev_vals_lamost = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['LAMOST'].to_numpy()
+    logger.info(f"Best fit values for LAMOST: {prev_vals_lamost}")
 
     # parameter names
     names = [r'$a$', r'$b$', r'$\bar{r}$', r'$\bar{s}$', r'$\bar{\imath}$', r'$\sigma_1$', r'$\sigma_2$', r'$\sigma_3$']
@@ -375,7 +531,7 @@ def calculate_fp_scatter() -> None:
 def main() -> None:
     try:
         logger.info(f'{"=" * 50}')
-        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING}...')
+        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
         logger.info(f'Sample selection constants:')
         logger.info(f'OMEGA_M = {OMEGA_M}')
         logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
@@ -384,11 +540,18 @@ def main() -> None:
         logger.info(f'ZMIN = {ZMIN}')
         logger.info(f'ZMAX = {ZMAX}')
 
+        # Model the magnitude completeness
+        model_completeness(['6dFGS', 'SDSS', 'LAMOST'])
+
         # Fit the FP for each survey
         FP_params = []
         for survey in NEW_SURVEY_LIST:
             # Get input filepath
             input_filepath = INPUT_FILEPATH[survey]
+
+            # Get completeness setting
+            use_completeness_model = True if COMPLETENESS_SETTING == 1 else False
+            completeness_model_filepath = COMPLETENESS_ARTIFACT_PATH if use_completeness_model else None
 
             # Get output filepath
             output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
@@ -403,7 +566,9 @@ def main() -> None:
                 survey=survey,
                 input_filepath=input_filepath,
                 outlier_output_filepath=output_filepath,
-                smin=smin
+                smin=smin,
+                use_completeness_model=use_completeness_model,
+                completeness_model_filepath=completeness_model_filepath
             )
             FP_params.append(params)
         
@@ -413,16 +578,16 @@ def main() -> None:
         FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
         pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
         
-        logger.info("Sampling the likelihood with MCMC...")
+        # logger.info("Sampling the likelihood with MCMC...")
         sample_likelihood()
         
-        logger.info("Generating corner plot...")
+        # logger.info("Generating corner plot...")
         generate_corner_plot()
 
-        logger.info("Fitting the marginalized distributions with Gaussian...")
+        # logger.info("Fitting the marginalized distributions with Gaussian...")
         fit_likelihood()
 
-        logger.info("Calculating the FP scatter...")
+        # logger.info("Calculating the FP scatter...")
         calculate_fp_scatter()
 
         logger.info(f'Fitting the Fundamental Plane successful!')

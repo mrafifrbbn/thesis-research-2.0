@@ -125,6 +125,13 @@ SURVEY_FP_SETTING = {
         'SDSS': 'SDSS',
         'LAMOST': 'SDSS',
         'ALL_COMBINED': 'SDSS'
+    },
+    # Third setting: use 6dFGS for 6dFGS and SDSS for SDSS and LAMOST
+    3: {
+        '6dFGS': '6dFGS',
+        'SDSS': 'SDSS',
+        'LAMOST': 'SDSS',
+        'ALL_COMBINED': 'ALL_COMBINED'
     }
 }
 

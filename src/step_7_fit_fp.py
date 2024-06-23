@@ -205,7 +205,7 @@ def calculate_completeness(mag, model_params):
 
 def fit_FP(
     survey: str,
-    input_filepath: str,
+    df: pd.DataFrame,
     outlier_output_filepath: str,
     smin: float,
     use_completeness_model: bool = False,
@@ -217,11 +217,10 @@ def fit_FP(
     reject_outliers: bool = REJECT_OUTLIERS
           ) -> np.ndarray:
     
+    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
+    
     # Set global random seed
     np.random.seed(42)
-    
-    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
-    df = pd.read_csv(input_filepath)
     
     # Re-apply the magnitude limit
     df = df[(df['j_m_ext'] - df['extinction_j']) <= mag_high]
@@ -239,6 +238,7 @@ def fit_FP(
     # Find the corresponding maximum redshift
     zlim = sp.interpolate.splev(Dlim, lumred_spline)
     Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+    df['Sn'] = Sn
     
     # Obtain completeness at each magnitude
     df['C_m'] = 1
@@ -393,7 +393,7 @@ def sample_likelihood() -> None:
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability, args=(param_boundaries, 0., z, r, s, i, dr, ds, di, Sn, dz, 0., 0., smin, True, False)
         )
-        sampler.run_mcmc(pos, 10000, progress=True, skip_initial_state_check=True)
+        sampler.run_mcmc(pos, 5000, progress=True, skip_initial_state_check=True)
 
         # Flatten the chain and save as numpy array
         flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
@@ -548,6 +548,7 @@ def main() -> None:
         for survey in NEW_SURVEY_LIST:
             # Get input filepath
             input_filepath = INPUT_FILEPATH[survey]
+            df = pd.read_csv(input_filepath)
 
             # Get completeness setting
             use_completeness_model = True if COMPLETENESS_SETTING == 1 else False
@@ -564,7 +565,7 @@ def main() -> None:
 
             params = fit_FP(
                 survey=survey,
-                input_filepath=input_filepath,
+                df=df,
                 outlier_output_filepath=output_filepath,
                 smin=smin,
                 use_completeness_model=use_completeness_model,

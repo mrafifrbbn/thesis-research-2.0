@@ -203,13 +203,13 @@ def combine_sdss_lamost_spectrophoto() -> None:
             ## Individual galaxies data
             req_cols = ['IDcl', 'RAJ2000', 'DEJ2000']
             with fits.open(TEMPEL_GAL_FILEPATH) as hdul:
-                df_gal = Table(hdul[1].data).to_pandas()[req_cols]
+                df_gal = Table(hdul[1].data).to_pandas()[req_cols].rename({'IDcl': 'Group'}, axis=1)
             ## Group and cluster data
-            req_cols = ['IDcl', 'zcl']
+            req_cols = ['IDcl', 'Ngal', 'zcl']
             with fits.open(TEMPEL_GROUP_FILEPATH) as hdul:
-                df_gr = Table(hdul[1].data).to_pandas()[req_cols]
+                df_gr = Table(hdul[1].data).to_pandas()[req_cols].rename({'IDcl': 'Group', 'Ngal': 'Nr'}, axis=1)
             ## Merge the two tables
-            df_tempel = df_gal.merge(df_gr, on='IDcl', how='left')
+            df_tempel = df_gal.merge(df_gr, on='Group', how='left')
 
             # Crossmatch SDSS/LAMOST data with Tempel data based on individual galaxy RA and DEC
             coords_mydata = SkyCoord(ra=df['ra'].to_numpy() * u.deg, dec=df['dec'].to_numpy() * u.deg)

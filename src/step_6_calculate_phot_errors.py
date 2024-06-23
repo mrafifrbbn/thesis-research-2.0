@@ -20,7 +20,7 @@ logger = get_logger('zms_cut')
 # Constant
 MAG_BIN_WIDTH = 0.2    # magnitude bin width
 
-GLOBAL_REQ_COL = ['ra', 'dec', 'zhelio', 'z_cmb', 'z_dist_est', 'j_m_ext', 'extinction_j', 'kcor_j', 'r_j', 'er_j', 's_scaled', 'es_scaled', 'i_j', 'ei_j']
+GLOBAL_REQ_COL = ['ra', 'dec', 'zhelio', 'z_cmb', 'z_dist_est', 'j_m_ext', 'extinction_j', 'kcor_j', 'r_j', 'er_j', 's_scaled', 'es_scaled', 'i_j', 'ei_j', 'Group', 'Nr']
 REQ_COLS = {
     '6dFGS': ['tmass', '_6dFGS'] + GLOBAL_REQ_COL,
     'SDSS': ['tmass', 'objid'] + GLOBAL_REQ_COL,

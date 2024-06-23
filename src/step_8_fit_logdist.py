@@ -17,61 +17,61 @@ load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
+COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
 FP_SETTING = int(os.environ.get('FP_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = SURVEY_LIST #(SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_logdist')
 
 # Set the file paths
 INPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/lamost.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/outlier_reject/smin_setting_{SMIN_SETTING}/all_combined.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined.csv')
 }
 
-FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
+FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_fits.csv')
 
 LOGDIST_POSTERIOR_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_posterior.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_posterior.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_posterior.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined_posterior.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/6dfgs_posterior.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/sdss_posterior.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/lamost_posterior.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/all_combined_posterior.npy')
 }
 create_parent_folder(LOGDIST_POSTERIOR_OUTPUT_FILEPATH)
 
 LOGDIST_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/all_combined.csv')
 }
 create_parent_folder(LOGDIST_OUTPUT_FILEPATH)
 
 CURVEFIT_COMPARISON_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/lamost.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/p_setting_{FP_SETTING}/all_combined.png')
 }
 create_parent_folder(CURVEFIT_COMPARISON_IMG_FILEPATH)
 
 POSTERIOR_SKEWNESS_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_skewness.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_skewness.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_skewness.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined_skewness.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/6dfgs_skewness.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/sdss_skewness.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/lamost_skewness.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_setting_{FP_SETTING}/all_combined_skewness.png')
 }
 create_parent_folder(POSTERIOR_SKEWNESS_IMG_FILEPATH)
 
 def fit_logdist(
         survey: str,
-        input_filepath: str,
+        df: pd.DataFrame,
         smin: float,
         FPparams: List[float],
-        logdist_output_filepath: str,
         mag_high: float = MAG_HIGH,
         mag_low: float = MAG_LOW,
         save_posterior: bool = False,
@@ -84,13 +84,10 @@ def fit_logdist(
     """
     # Get some redshift-distance lookup tables
     red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-
-    # Load the data
-    df = pd.read_csv(input_filepath)
     dz = sp.interpolate.splev(df["z_cmb"].to_numpy()/LightSpeed, dist_spline)
     dz_cluster = sp.interpolate.splev(df["z_dist_est"], dist_spline)
     FPparams = np.array(FPparams)
-    print(f'Number of {survey} data = {len(df)}. FP best fits = {FPparams}')
+    logger.info(f'Number of {survey} data = {len(df)}. FP best fits = {FPparams}')
 
     # Fit the logdistance ratios (range tested and number of points)
     dmin, dmax, nd = -1.5, 1.5, 1001
@@ -104,7 +101,7 @@ def fit_logdist(
     loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, sumgals=False)
     start = time.time()
     FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
-    print(f'Time elapsed to fit the logdists = {time.time() - start} s.')
+    logger.info(f'Time elapsed to fit the logdists = {time.time() - start} s.')
 
     # Convert to the PDF for logdistance
     logP_dist = -1.5 * np.log(2.0 * math.pi) - loglike - FNvals
@@ -158,9 +155,6 @@ def fit_logdist(
     df['logdist_mean_cf'] = logdist_mean
     df['logdist_std_cf'] = logdist_std
     df['logdist_chisq_cf'] = chisq
-
-    # Save the new dataframe
-    df.to_csv(logdist_output_filepath, index=False)
     
     return df
 
@@ -229,6 +223,7 @@ def main() -> None:
         for survey in SURVEY_LIST:
             # Get input filename (outlier-rejected sample)
             input_filepath = INPUT_FILEPATH[survey]
+            df = pd.read_csv(input_filepath)
             
             # Survey's veldisp limit
             if survey == 'ALL_COMBINED':
@@ -245,9 +240,9 @@ def main() -> None:
             # Get output filename
             logdist_output_filepath = LOGDIST_OUTPUT_FILEPATH[survey]
             
-            fit_logdist(
+            df = fit_logdist(
                 survey=survey,
-                input_filepath=input_filepath,
+                df=df,
                 smin=smin,
                 FPparams=FPparams,
                 logdist_output_filepath=logdist_output_filepath,
@@ -255,11 +250,14 @@ def main() -> None:
                 logdist_posterior_filepath=logdist_posterior_filepath
                     )
 
-        logger.info('Comparing Gaussian curve_fit vs skew-normal...')
-        compare_cf_vs_formula()
+            # Save the new dataframe
+            df.to_csv(logdist_output_filepath, index=False)
+
+        # logger.info('Comparing Gaussian curve_fit vs skew-normal...')
+        # compare_cf_vs_formula()
         
-        logger.info('Plotting the best and worst posterior distributions...')
-        plot_best_worst_posterior()
+        # logger.info('Plotting the best and worst posterior distributions...')
+        # plot_best_worst_posterior()
 
         logger.info('Fitting log-distance ratios successful!')
     except Exception as e:

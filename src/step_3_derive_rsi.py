@@ -123,6 +123,8 @@ def derive_rsi() -> None:
         logger.info('Obtaining group/cluster mean redshift if available...')
         if survey in ['SDSS', 'LAMOST']:
             df['z_dist_est'] = np.where(df['tempel_counterpart'] == True, df['zcl'], df['z_cmb'])
+            df['Group'] = np.where(df['tempel_counterpart'] == True, df['Group'], -1)
+            df['Nr'] = np.where(df['tempel_counterpart'] == True, df['Nr'], 1)
         else:
             df['z_dist_est'] = np.where(df['cz_gr'] != 0., df['cz_gr'] / LIGHTSPEED, df['z_cmb'])
 

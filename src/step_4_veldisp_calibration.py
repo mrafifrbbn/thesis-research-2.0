@@ -46,15 +46,15 @@ def get_common_galaxies() -> None:
         logger.info('Opening r, s, i data...')
         data_6df = pd.read_csv(INPUT_FILEPATH['6dFGS'])[['tmass', '_6dFGS', 's', 'es']]
         data_6df_id = data_6df[['tmass','_6dFGS']]
-        data_6df_veldisp = data_6df[['tmass', 's', 'es']].rename(columns={'s':'s_6df','es':'es_6df'})
+        data_6df_veldisp = data_6df[['tmass', 's', 'es']].rename(columns={'s': 's_6df', 'es': 'es_6df'})
 
         data_sdss = pd.read_csv(INPUT_FILEPATH['SDSS'])[['tmass', 'objid', 's', 'es']]
         data_sdss_id = data_sdss[['tmass','objid']]
-        data_sdss_veldisp = data_sdss[['tmass', 's', 'es']].rename(columns={'s':'s_sdss','es':'es_sdss'})
+        data_sdss_veldisp = data_sdss[['tmass', 's', 'es']].rename(columns={'s': 's_sdss', 'es': 'es_sdss'})
 
         data_lamost = pd.read_csv(INPUT_FILEPATH['LAMOST'])[['tmass', 'obsid', 's', 'es']]
         data_lamost_id = data_lamost[['tmass','obsid']]
-        data_lamost_veldisp = data_lamost[['tmass', 's', 'es']].rename(columns={'s':'s_lamost','es':'es_lamost'})
+        data_lamost_veldisp = data_lamost[['tmass', 's', 'es']].rename(columns={'s': 's_lamost', 'es': 'es_lamost'})
 
         # Find galaxies with repeat measurements for every survey combination
         logger.info('Finding common galaxies...')

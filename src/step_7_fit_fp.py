@@ -267,7 +267,7 @@ def fit_FP(
         # The range of the FP parameters' values
         avals, bvals = (1.0, 1.8), (-1.0, -0.5)
         rvals, svals, ivals = (-0.5, 0.5), (2.0, 2.5), (3.0, 3.5)
-        s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.1, 0.3)
+        s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.05, 0.3)
 
         # Fit the FP parameters
         FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
@@ -387,7 +387,7 @@ def sample_likelihood() -> None:
         nwalkers, ndim = pos.shape
 
         # Flat prior boundaries (same order as FP_params)
-        param_boundaries = [(1.0, 1.8), (-1.0, -0.5), (-0.5, 0.5), (1.8, 2.5), (2.8, 3.5), (0.0, 0.3), (0.1, 0.5), (0.1, 0.3)]
+        param_boundaries = [(1.0, 1.8), (-1.0, -0.5), (-0.5, 0.5), (1.8, 2.5), (2.8, 3.5), (0.0, 0.3), (0.1, 0.5), (0.05, 0.3)]
 
         # Run the MCMC
         sampler = emcee.EnsembleSampler(

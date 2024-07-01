@@ -34,8 +34,8 @@ VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv')
 
 # --------------------------- VARIABLE THAT NEEDS TO BE ADJUSTED --------------------------- #
-ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only']
-METHOD_NO: int = 2       # Fill 0, 1, or 2
+ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only', 'sdss_only']
+METHOD_NO: int = 2       # Fill 0, 1, 2, or 3
 
 def get_common_galaxies() -> None:
     '''
@@ -356,6 +356,73 @@ def get_error_scaling_lamost_only(df_repeat: pd.DataFrame, sigma_clip: float = 5
         
     return k_lamost_sdss_fid, k_lamost_6df_fid
 
+# --------- Find the error scaling only for SDSS (assume k_lamost = k_6df = 1) ---------- #
+def get_error_scaling_sdss_only(df_repeat: pd.DataFrame, sigma_clip: float = 5.0, max_iter: int = 10) -> Tuple[float, float]:
+    '''
+    A function to obtain the error scaling
+    '''
+    def update_error_scaling(s_var: np.ndarray, es_var: np.ndarray, s_fiducial: np.ndarray, es_fiducial: np.ndarray, survey: str, k: float = 1.0, sigma_clip: float = 3.0, convergence_tol: float = 0.005) -> Tuple[float, bool]:
+        '''
+        A function to calculate the error scaling for SDSS and LAMOST.
+        '''
+        try:
+            logger.info(f'Updating error scaling for LAMOST using {survey} as the fiducial.')
+            # Scale the errors
+            es_var_scaled = k * es_var
+
+            # Calculate the pairwise statistics
+            epsilon = (s_var - s_fiducial) / np.sqrt(es_var_scaled**2 + es_fiducial**2)
+
+            # Apply sigma clipping before calculating the new error scaling
+            logger.info(f'Applying {sigma_clip} sigma clipping...')
+            sigma_clip_filter = np.logical_and(~np.isnan(epsilon), np.absolute(epsilon) < sigma_clip)
+            es_var_clipped = es_var_scaled[sigma_clip_filter]
+            es_fiducial_clipped = es_fiducial[sigma_clip_filter]
+            epsilon_clipped = epsilon[sigma_clip_filter]
+            logger.info(f'Number of comparisons remaining = {len(epsilon_clipped)}.')
+
+            # Update the error scaling and check convergence
+            N = len(epsilon_clipped)
+            rms_var = (1 / N) * np.sum(es_var_clipped**2)
+            rms_fiducial = (1 / N) * np.sum(es_fiducial_clipped**2)
+            f2 = np.std(epsilon_clipped)**2
+            k_new = np.sqrt(f2 + (f2 - 1) * (rms_fiducial / rms_var))
+            k_updated = k * k_new
+            is_convergent = np.absolute((k_updated - k) / k_updated) * 100 < convergence_tol
+
+            logger.info(f'New scaling for LAMOST using {survey} fiducial = {k_updated}.')
+            return k_updated, is_convergent
+        except Exception as e:
+            logger.info(f'Finding scaling for LAMOST using {survey} fiducial failed. Reason: {e}')
+            return k, True
+
+    # SDSS and LAMOST veldisp
+    s_6df = df_repeat['s_6df'].to_numpy()
+    es_6df = df_repeat['es_6df'].to_numpy()
+    s_sdss = df_repeat['s_sdss'].to_numpy()
+    es_sdss = df_repeat['es_sdss'].to_numpy()
+    s_lamost = df_repeat['s_lamost'].to_numpy()
+    es_lamost = df_repeat['es_lamost'].to_numpy()
+    
+    # Initial scalings for SDSS and LAMOST
+    k_sdss_lamost_fid = 1.0
+    k_sdss_6df_fid = 1.0
+    
+    # Find the error scalings
+    for i in range(max_iter):
+        # Using LAMOST fiducial 
+        k_sdss_lamost_fid, is_sdss_lamost_fid_convergent = update_error_scaling(s_sdss, es_sdss, s_lamost, es_lamost, 'LAMOST', k_sdss_lamost_fid, sigma_clip)
+
+        logger.info(f'Iteration {i}. SDSS scaling using LAMOST fiducial = {round(k_sdss_lamost_fid, 3)}.')
+        
+        if (is_sdss_lamost_fid_convergent):
+            logger.info('Convergence is reached for both error scalings.')
+            break
+    else:
+        logger.info('Maximum number of iterations reached')
+        
+    return k_sdss_lamost_fid, k_sdss_6df_fid
+
 def get_offset(k_6df: float = 1.0, k_sdss: float = 1.0, k_lamost: float = 1.0, runs: int = 3, cut: float = 0.2, target: float = 0.5, nboot: int = 10, level: float = 0.0, max_iter: int = 100., random_seed: int = 42) -> pd.DataFrame:
     '''
     A function to get the offset in log velocity dispersions (or equivalently scaling in linear velocity dispersions).
@@ -523,8 +590,9 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
     # CONSTANTS
     BIN_LIST = [4, 40, 10]
     XLIM_LIST = [(-6, 6), (-6, 6), (-6, 6)]
-    XLABEL_LIST = [r'$\epsilon_\text{6dFGS-SDSS}$', r'$\epsilon_\text{SDSS-LAMOST}$', r'$\epsilon_\text{6dFGS-LAMOST}$']
-
+    SURVEY_COMBOS = [('6df', 'sdss'), ('sdss', 'lamost'), ('6df', 'lamost')]
+    XLABEL_LIST = [r'$ϵ_\text{6dFGS-SDSS}$', r'$ϵ_\text{SDSS-LAMOST}$', r'$ϵ_\text{6dFGS-LAMOST}$']
+    
     logger.info('Generating comparison plot with the following inputs:')
     logger.info(f'Method: {method}')
     logger.info(f'k_6df: {k_6df}')
@@ -534,65 +602,82 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
     logger.info(f'off_sdss: {off_sdss}')
     logger.info(f'off_lamost: {off_lamost}')
 
-    try:
-        df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
+    df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
+    # Apply the offsets
+    df['s_6df_scaled'] = df['s_6df'] - off_6df
+    df['es_6df_scaled'] = df['es_6df'] * k_6df
+    df['s_sdss_scaled'] = df['s_sdss'] - off_sdss
+    df['es_sdss_scaled'] = df['es_sdss'] * k_sdss
+    df['s_lamost_scaled'] = df['s_lamost'] - off_lamost
+    df['es_lamost_scaled'] = df['es_lamost'] * k_lamost
 
-        # Apply the offsets
-        df['s_6df_scaled'] = df['s_6df'] - off_6df
-        df['es_6df_scaled'] = df['es_6df'] * k_6df
-        df['s_sdss_scaled'] = df['s_sdss'] - off_sdss
-        df['es_sdss_scaled'] = df['es_sdss'] * k_sdss
-        df['s_lamost_scaled'] = df['s_lamost'] - off_lamost
-        df['es_lamost_scaled'] = df['es_lamost'] * k_lamost
-
-        # Calculate the epsilons (without offset)
-        df['epsilon_6df_sdss'] = (df['s_6df'] - df['s_sdss']) / np.sqrt(df['es_6df']**2 + df['es_sdss']**2)
-        df['epsilon_sdss_lamost'] = (df['s_sdss'] - df['s_lamost']) / np.sqrt(df['es_sdss']**2 + df['es_lamost']**2)
-        df['epsilon_6df_lamost'] = (df['s_6df'] - df['s_lamost']) / np.sqrt(df['es_6df']**2 + df['es_lamost']**2)
-        epsilon = df[['epsilon_6df_sdss', 'epsilon_sdss_lamost', 'epsilon_6df_lamost']]
-
-        # Calculate the epsilons (with offset)
-        df['epsilon_6df_sdss_scaled'] = (df['s_6df_scaled'] - df['s_sdss_scaled']) / np.sqrt(df['es_6df_scaled']**2 + df['es_sdss_scaled']**2)
-        df['epsilon_sdss_lamost_scaled'] = (df['s_sdss_scaled'] - df['s_lamost_scaled']) / np.sqrt(df['es_sdss_scaled']**2 + df['es_lamost_scaled']**2)
-        df['epsilon_6df_lamost_scaled'] = (df['s_6df_scaled'] - df['s_lamost_scaled']) / np.sqrt(df['es_6df_scaled']**2 + df['es_lamost_scaled']**2)
-        epsilon_scaled = df[['epsilon_6df_sdss_scaled', 'epsilon_sdss_lamost_scaled', 'epsilon_6df_lamost_scaled']]
-
-        fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(12, 5))
-
-        # Plot before and after scaling + offset
-        for i, ax in enumerate(axs):
-            data = epsilon[epsilon.columns[i]].dropna()
-            ax.hist(data, bins=BIN_LIST[i], density=True, alpha=0.5)
-            
-            data_scaled = epsilon_scaled[epsilon_scaled.columns[i]].dropna()
-            ax.hist(data_scaled, bins=BIN_LIST[i], density=True, alpha=0.5)
-            
-            # Misc
-            ax.grid(linestyle=":")
-            ax.set_title(f'N = {len(data)}')
-            ax.set_xlim(XLIM_LIST[i])
-            ax.set_ylim(0., 0.65)
-            ax.set_xlabel(XLABEL_LIST[i], fontsize=18)
-            ax.set_xticks(ax.get_xticks()[1:-1])
+    fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(12, 5))
     
-            if i==0:
-                ax.set_ylabel(r'$N$', fontsize=14)
-            
-        # Plot standard normal Gaussians (target)
-        x = np.arange(start=-10., stop=10., step=0.0001)
-        y = norm.pdf(x, loc=0., scale=1.)
-        for ax in axs:
-            ax.plot(x, y, c='k', lw=1.0)
-
-        plt.subplots_adjust(wspace=0)
-
-        img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison.png')
-        logger.info(f'Saving image to {img_output_path}')
-        plt.tight_layout()
-        fig.savefig(img_output_path, dpi=300)
+    for i, combo in enumerate(SURVEY_COMBOS):
+        survey_1, survey_2 = combo
         
-    except Exception as e:
-        logger.error(f'Generating comparison plot failed. Reason: {e}.')
+        # Calculate original statistics
+        epsilon = (df[f's_{survey_1}'] - df[f's_{survey_2}']) / np.sqrt(df[f'es_{survey_1}']**2 + df[f'es_{survey_2}']**2)
+        Ngal = epsilon.notna().sum()
+        # Calculate mean, std, and standard errors in them
+        eps_mean = epsilon.median()
+        eps_std = epsilon.std()
+        eps_mean_stderr = eps_std / np.sqrt(Ngal)
+        eps_std_stderr = eps_std / np.sqrt(2 * (Ngal - 1))
+        mean_severity = eps_mean / eps_mean_stderr
+        std_severity = eps_std / eps_std_stderr
+        
+        logger.info(f"Comparison between {survey_1} and {survey_2} before scaling. Ngal = {len(df)}...")
+        logger.info(f'- Mean of ϵ is {np.round(eps_mean, 3)} with standard error in the mean of {np.round(eps_mean_stderr, 3)}. Therefore it is {np.round(mean_severity, 3)}σ away from the expected 0.')
+        logger.info(f'- Std of ϵ is {np.round(eps_std, 3)} with standard error in the std of {np.round(eps_std_stderr, 3)}. Therefore it is {np.round(std_severity, 3)}σ away from the expected 1.')
+        
+        # Calculate statistics after scaling and offset
+        epsilon_scaled = (df[f's_{survey_1}_scaled'] - df[f's_{survey_2}_scaled']) / np.sqrt(df[f'es_{survey_1}_scaled']**2 + df[f'es_{survey_2}_scaled']**2)
+        Ngal_scaled = epsilon_scaled.notna().sum()
+        # Calculate mean, std, and standard errors in them
+        eps_scaled_mean = epsilon_scaled.median()
+        eps_scaled_std = epsilon_scaled.std()
+        eps_scaled_mean_stderr = eps_scaled_std / np.sqrt(Ngal_scaled)
+        eps_scaled_std_stderr = eps_scaled_std / np.sqrt(2 * (Ngal_scaled - 1))
+        scaled_mean_severity = eps_scaled_mean / eps_scaled_mean_stderr
+        scaled_std_severity = eps_scaled_std / eps_scaled_std_stderr
+        
+        logger.info(f"Comparison between {survey_1} and {survey_2} after scaling. Ngal = {len(df)}...")
+        logger.info(f'- Mean of ϵ is {np.round(eps_scaled_mean, 3)} with standard error in the mean of {np.round(eps_scaled_mean_stderr, 3)}. Therefore it is {np.round(scaled_mean_severity, 3)}σ away from the expected 0.')
+        logger.info(f'- Std of ϵ is {np.round(eps_scaled_std, 3)} with standard error in the std of {np.round(eps_scaled_std_stderr, 3)}. Therefore it is {np.round(scaled_std_severity, 3)}σ away from the expected 1.')
+        
+        axs[i].hist(epsilon, bins=BIN_LIST[i], density=True, alpha=0.5)
+        axs[i].hist(epsilon_scaled, bins=BIN_LIST[i], density=True, alpha=0.5)
+        
+        # Write the before and after statistics
+        textstr = '\n'.join((
+            fr'$N_g = {Ngal}$',
+            r'$\bar{ϵ}=%.3f$' % eps_mean + fr' $\longrightarrow {np.round(eps_scaled_mean, 3)}$',
+            fr'$\sigma_ϵ={np.round(eps_std, 3)} \longrightarrow {np.round(eps_scaled_std, 3)}$'))
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        axs[i].text(-5.4, 0.72, textstr, fontsize=12,
+                verticalalignment='top', bbox=props)
+        
+        # Misc
+        axs[i].grid(linestyle=":")
+        axs[i].set_xlim(XLIM_LIST[i])
+        axs[i].set_ylim(0., 0.75)
+        axs[i].set_xlabel(XLABEL_LIST[i], fontsize=18)
+        axs[i].set_xticks(axs[i].get_xticks()[1:-1])
+        axs[0].set_ylabel(r'$N$', fontsize=14)
+
+    # Plot standard normal Gaussians (target)
+    x = np.arange(start=-10., stop=10., step=0.0001)
+    y = norm.pdf(x, loc=0., scale=1.)
+    for ax in axs:
+        ax.plot(x, y, c='k', lw=1.0)
+
+    plt.subplots_adjust(wspace=0)
+
+    img_output_path = os.path.join(ROOT_PATH, f'img/veldisp_comparison.pdf')
+    logger.info(f'Saving image to {img_output_path}')
+    plt.tight_layout()
+    fig.savefig(img_output_path, dpi=300)
 
 def apply_scalings(error_scalings: Dict[str, float], offsets: Dict[str, float]) -> None:
     '''
@@ -639,6 +724,13 @@ def main() -> None:
         k_lamost = k_lamost_sdss_fid
         end = time.time()
         logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
+    elif method == 'sdss_only':
+        logger.info(f'Finding SDSS error scaling by comparing with LAMOST...')
+        start = time.time()
+        k_sdss_lamost_fid, k_sdss_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
+        k_sdss = k_sdss_lamost_fid
+        end = time.time()
+        logger.info(f'Finding SDSS error scaling by comparing with LAMOST successful! Time elapsed = {round(end - start, 2)} s.')
 
     logger.info(f"Finding the velocity dispersion offset...")
     totoffs = get_offset(k_6df, k_sdss, k_lamost, nboot=100)

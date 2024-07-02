@@ -603,6 +603,9 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
     logger.info(f'off_lamost: {off_lamost}')
 
     df = pd.read_csv(VELDISP_ORI_OUTPUT_FILEPATH)
+    # off_6df = 0.
+    # off_sdss = 0.
+    # off_lamost = 0.
     # Apply the offsets
     df['s_6df_scaled'] = df['s_6df'] - off_6df
     df['es_6df_scaled'] = df['es_6df'] * k_6df
@@ -625,7 +628,7 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
         eps_mean_stderr = eps_std / np.sqrt(Ngal)
         eps_std_stderr = eps_std / np.sqrt(2 * (Ngal - 1))
         mean_severity = eps_mean / eps_mean_stderr
-        std_severity = eps_std / eps_std_stderr
+        std_severity = (eps_std - 1.0) / eps_std_stderr
         
         logger.info(f"Comparison between {survey_1} and {survey_2} before scaling. Ngal = {len(df)}...")
         logger.info(f'- Mean of ϵ is {np.round(eps_mean, 3)} with standard error in the mean of {np.round(eps_mean_stderr, 3)}. Therefore it is {np.round(mean_severity, 3)}σ away from the expected 0.')
@@ -640,7 +643,7 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
         eps_scaled_mean_stderr = eps_scaled_std / np.sqrt(Ngal_scaled)
         eps_scaled_std_stderr = eps_scaled_std / np.sqrt(2 * (Ngal_scaled - 1))
         scaled_mean_severity = eps_scaled_mean / eps_scaled_mean_stderr
-        scaled_std_severity = eps_scaled_std / eps_scaled_std_stderr
+        scaled_std_severity = (eps_scaled_std - 1.0) / eps_scaled_std_stderr
         
         logger.info(f"Comparison between {survey_1} and {survey_2} after scaling. Ngal = {len(df)}...")
         logger.info(f'- Mean of ϵ is {np.round(eps_scaled_mean, 3)} with standard error in the mean of {np.round(eps_scaled_mean_stderr, 3)}. Therefore it is {np.round(scaled_mean_severity, 3)}σ away from the expected 0.')
@@ -655,22 +658,24 @@ def generate_comparison_plot(method: str, k_6df: float = 1.0, k_sdss: float = 1.
             r'$\bar{ϵ}=%.3f$' % eps_mean + fr' $\longrightarrow {np.round(eps_scaled_mean, 3)}$',
             fr'$\sigma_ϵ={np.round(eps_std, 3)} \longrightarrow {np.round(eps_scaled_std, 3)}$'))
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        axs[i].text(-5.4, 0.72, textstr, fontsize=12,
+        axs[i].text(-5.4, 0.72, textstr, fontsize=14,
                 verticalalignment='top', bbox=props)
         
         # Misc
         axs[i].grid(linestyle=":")
         axs[i].set_xlim(XLIM_LIST[i])
         axs[i].set_ylim(0., 0.75)
-        axs[i].set_xlabel(XLABEL_LIST[i], fontsize=18)
+        axs[i].set_xlabel(XLABEL_LIST[i], fontsize=24)
         axs[i].set_xticks(axs[i].get_xticks()[1:-1])
-        axs[0].set_ylabel(r'$N$', fontsize=14)
+        axs[0].set_ylabel(r'$N$', fontsize=16)
 
     # Plot standard normal Gaussians (target)
     x = np.arange(start=-10., stop=10., step=0.0001)
     y = norm.pdf(x, loc=0., scale=1.)
     for ax in axs:
         ax.plot(x, y, c='k', lw=1.0)
+        ax.tick_params(axis='x', labelsize=14)
+        ax.tick_params(axis='y', labelsize=14)
 
     plt.subplots_adjust(wspace=0)
 

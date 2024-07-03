@@ -30,8 +30,9 @@ OUTPUT_FILEPATH = {
 }
 
 VELDISP_ORI_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_ori.csv')
-VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
 VELDISP_TOTOFF_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/veldisp_calibration/totoffs.csv')
+VELDISP_SCALED_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/processed/veldisp_calibrated/repeat_scaled.csv')
+
 
 # --------------------------- VARIABLE THAT NEEDS TO BE ADJUSTED --------------------------- #
 ERROR_SCALING_METHODS = ['old_method', 'sdss_fiducial', 'lamost_only', 'sdss_only']
@@ -737,16 +738,22 @@ def main() -> None:
         end = time.time()
         logger.info(f'Finding SDSS error scaling by comparing with LAMOST successful! Time elapsed = {round(end - start, 2)} s.')
 
+    # Save the scalings
+    scalings = np.array([[k_6df, k_sdss, k_lamost]])
+    VELDISP_SCALING_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/veldisp_calibration/scaling_{method}.csv')
+    pd.DataFrame(data=scalings, columns=['k_6df', 'k_sdss', 'k_lamost']).to_csv(VELDISP_SCALING_OUTPUT_FILEPATH, index=False)
+
+    # Calculate the error-weighted offsets
     logger.info(f"Finding the velocity dispersion offset...")
     totoffs = get_offset(k_6df, k_sdss, k_lamost, nboot=100)
     off_6df = totoffs.loc[0, ['off_6df']].values[0]
+    off_sdss = totoffs.loc[0, ['off_sdss']].values[0]
     off_lamost = totoffs.loc[0, ['off_lamost']].values[0]
 
     logger.info(f"Generating the epsilon comparison plot...")
     generate_comparison_plot(method, k_6df=k_6df, k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=3.5)
     
     logger.info(f"Applying the scalings...")
-    off_sdss = 0.0
     error_scalings = {
         '6dFGS': k_6df,
         'SDSS': k_sdss,

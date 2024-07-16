@@ -41,6 +41,14 @@ OUTPUT_FILEPATH = {
 }
 create_parent_folder(OUTPUT_FILEPATH)
 
+MODEL_ARTIFACT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/phot_error/smin_setting_{SMIN_SETTING}/model.csv')
+create_parent_folder(MODEL_ARTIFACT_FILEPATH)
+
+XDATA_ARTIFACT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/phot_error/smin_setting_{SMIN_SETTING}/xdata.npy')
+YDATA_ARTIFACT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/phot_error/smin_setting_{SMIN_SETTING}/ydata.npy')
+create_parent_folder(XDATA_ARTIFACT_FILEPATH)
+create_parent_folder(YDATA_ARTIFACT_FILEPATH)
+
 IMG_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'img/phot_error/smin_setting_{SMIN_SETTING}.png')
 
 # Piecewise linear function
@@ -126,6 +134,11 @@ def derive_phot_error() -> np.ndarray:
     constant_pl = round(popt[1] - popt[2] * popt[0], 4)
     logger.info(f"Equation: y = {popt[1]:.4f} for x <= {popt[0]:.4f}")
     logger.info(f"Equation: y = {popt[2]:.4f}m_J + ({constant_pl:.4f}) for x > {popt[0]:.4f}")
+
+    # Save the parameters as artifact
+    np.save(XDATA_ARTIFACT_FILEPATH, x_data)
+    np.save(YDATA_ARTIFACT_FILEPATH, y_data)
+    pd.DataFrame(np.array([popt]), columns=['x0', 'y0', 'k']).to_csv(MODEL_ARTIFACT_FILEPATH, index=False)
 
     # Plot the results
     x_trial = np.linspace(np.min(x_data) - 0.5, np.max(x_data) + 0.1, 1000)

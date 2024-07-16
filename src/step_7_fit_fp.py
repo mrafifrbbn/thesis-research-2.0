@@ -26,7 +26,7 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = SURVEY_LIST #(SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')
@@ -271,7 +271,7 @@ def fit_FP(
 
         # Fit the FP parameters
         FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6)
+            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6, workers=-1)
         # Calculate the chi-squared 
         chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, sumgals=False, chi_squared_only=True)[0]
 
@@ -315,7 +315,7 @@ def fit_FP(
     df = data_fit
     df.to_csv(outlier_output_filepath, index=False)
     
-    return FPparams.x
+    return FPparams.x, df
 
 def sample_likelihood() -> None:
     # The log-prior function for the FP parameters
@@ -563,13 +563,14 @@ def main() -> None:
             else:
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
-            params = fit_FP(
+            params, _ = fit_FP(
                 survey=survey,
                 df=df,
                 outlier_output_filepath=output_filepath,
                 smin=smin,
                 use_completeness_model=use_completeness_model,
-                completeness_model_filepath=completeness_model_filepath
+                completeness_model_filepath=completeness_model_filepath,
+                reject_outliers=True
             )
             FP_params.append(params)
         
@@ -580,18 +581,18 @@ def main() -> None:
         pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
         
         # logger.info("Sampling the likelihood with MCMC...")
-        sample_likelihood()
+        # sample_likelihood()
         
         # logger.info("Generating corner plot...")
-        generate_corner_plot()
+        # generate_corner_plot()
 
         # logger.info("Fitting the marginalized distributions with Gaussian...")
-        fit_likelihood()
+        # fit_likelihood()
 
         # logger.info("Calculating the FP scatter...")
-        calculate_fp_scatter()
+        # calculate_fp_scatter()
 
-        logger.info(f'Fitting the Fundamental Plane successful!')
+        # logger.info(f'Fitting the Fundamental Plane successful!')
     except Exception as e:
         logger.error(f'Fitting the FP failed. Reason: {e}.')
 

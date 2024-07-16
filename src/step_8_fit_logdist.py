@@ -101,6 +101,8 @@ def fit_logdist(
     loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, sumgals=False)
     start = time.time()
     FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
+    print(FNvals)
+    # df["f_n"] = FNvals
     logger.info(f'Time elapsed to fit the logdists = {time.time() - start} s.')
 
     # Convert to the PDF for logdistance
@@ -237,18 +239,17 @@ def main() -> None:
             # Logdist posterior filepath
             logdist_posterior_filepath = LOGDIST_POSTERIOR_OUTPUT_FILEPATH[survey]
             
-            # Get output filename
-            logdist_output_filepath = LOGDIST_OUTPUT_FILEPATH[survey]
-            
             df = fit_logdist(
                 survey=survey,
                 df=df,
                 smin=smin,
                 FPparams=FPparams,
-                logdist_output_filepath=logdist_output_filepath,
                 save_posterior=True,
                 logdist_posterior_filepath=logdist_posterior_filepath
                     )
+
+            # Get output filename
+            logdist_output_filepath = LOGDIST_OUTPUT_FILEPATH[survey]
 
             # Save the new dataframe
             df.to_csv(logdist_output_filepath, index=False)

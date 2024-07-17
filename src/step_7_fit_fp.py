@@ -1,4 +1,5 @@
 import os
+import sys
 import trace
 import numpy as np
 import pandas as pd
@@ -9,11 +10,15 @@ from matplotlib import cm, ticker
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from utils.constants import *
 from utils.CosmoFunc import *
 from utils.logging_config import get_logger
+
+pvhub_dir = '/Users/mrafifrbbn/Documents/thesis/pvhub/'
+if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
+from pvhub import * # type: ignore
 
 import emcee
 import getdist
@@ -38,178 +43,180 @@ INPUT_FILEPATH = {
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
-COMPLETENESS_ARTIFACT_PATH = os.path.join(ROOT_PATH, f"artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness.csv")
-create_parent_folder(COMPLETENESS_ARTIFACT_PATH)
+# COMPLETENESS_ARTIFACT_PATH = os.path.join(ROOT_PATH, f"artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness.csv")
+# create_parent_folder(COMPLETENESS_ARTIFACT_PATH)
 
-COMPLETENESS_IMAGE_PATH = os.path.join(ROOT_PATH, f"img/fp_fit/smin_setting_{SMIN_SETTING}/completeness.png")
-create_parent_folder(COMPLETENESS_IMAGE_PATH)
+# COMPLETENESS_IMAGE_PATH = os.path.join(ROOT_PATH, f"img/fp_fit/smin_setting_{SMIN_SETTING}/completeness.png")
+# create_parent_folder(COMPLETENESS_IMAGE_PATH)
 
 OUTLIER_REJECT_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
 
-FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_fits.csv')
+FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
 create_parent_folder(FP_FIT_FILEPATH)
 
 MCMC_CHAIN_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs_chain.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost_chain.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined_chain.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_chain.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/all_combined_chain.npy')
 }
 create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
 
-LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/three_surveys_likelihood.png')
+LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/three_surveys_likelihood.png')
 create_parent_folder(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH)
 
 LIKELIHOOD_DIST_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/lamost.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/all_combined.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/all_combined.png')
 }
 
-FP_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/completeness_setting_{COMPLETENESS_SETTING}/fp_scatter.csv')
+FP_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_scatter.csv')
 create_parent_folder(FP_SCATTER_FILEPATH)
 
 # User-defined variables
 PVALS_CUT = 0.01
 REJECT_OUTLIERS = True
+PARAM_BOUNDARIES = [(1.2, 1.6), (-0.9, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.2, 3.5), (0.0, 0.06), (0.25, 0.45), (0.1, 0.25)]
 
-def model_completeness(
-    surveys: List[str] = SURVEY_LIST,
-    markerstyles_: Dict[str, str] = DEFAULT_MARKERSTYLES,
-    lower_mag: float = MAG_LOW,
-    upper_mag: float = MAG_HIGH,
-    bin_width: float = COMPLETENESS_BIN_WIDTH,
-    p_val_reject: float = 0.01,
-    artifact_filepath: str = COMPLETENESS_ARTIFACT_PATH,
-    image_filepath: str = COMPLETENESS_IMAGE_PATH
-):
-    model_params = []
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(FIGURE_WIDTH * 2, FIGURE_HEIGHT))
-    for survey in surveys:
-        filepath = INPUT_FILEPATH.get(survey)
-        df = pd.read_csv(filepath)
+# Set global random seed
+np.random.seed(42)
 
-        # Extinction-corrected magnitude
-        df['mag_j'] = df['j_m_ext'] - df['extinction_j']
+# def model_completeness(
+#     surveys: List[str] = SURVEY_LIST,
+#     markerstyles_: Dict[str, str] = DEFAULT_MARKERSTYLES,
+#     lower_mag: float = MAG_LOW,
+#     upper_mag: float = MAG_HIGH,
+#     bin_width: float = COMPLETENESS_BIN_WIDTH,
+#     p_val_reject: float = 0.01,
+#     artifact_filepath: str = COMPLETENESS_ARTIFACT_PATH,
+#     image_filepath: str = COMPLETENESS_IMAGE_PATH
+# ):
+#     model_params = []
+#     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(FIGURE_WIDTH * 2, FIGURE_HEIGHT))
+#     for survey in surveys:
+#         filepath = INPUT_FILEPATH.get(survey)
+#         df = pd.read_csv(filepath)
 
-        # Create magnitude histogram
-        bins_ = np.arange(lower_mag, upper_mag + bin_width, bin_width)
-        labels_ = [i for i in range(1, len(bins_))]
-        df['mag_bin'] = pd.cut(df['mag_j'], bins_, labels=labels_)
+#         # Extinction-corrected magnitude
+#         df['mag_j'] = df['j_m_ext'] - df['extinction_j']
 
-        # Count each bin
-        df_grouped = df[['mag_bin', 'mag_j']].groupby(by='mag_bin', observed=False).agg(
-            N=('mag_bin', 'count'),
-            mag_mean=('mag_j', 'mean')
-        )
-        df_grouped['log_N'] = np.log10(df_grouped['N'])
-        df_grouped = df_grouped[df_grouped['log_N'] > 0]
+#         # Create magnitude histogram
+#         bins_ = np.arange(lower_mag, upper_mag + bin_width, bin_width)
+#         labels_ = [i for i in range(1, len(bins_))]
+#         df['mag_bin'] = pd.cut(df['mag_j'], bins_, labels=labels_)
 
-        # Fit the function iteratively
-        x_data = df_grouped['mag_mean'].to_numpy()
-        y_data = df_grouped['log_N'].to_numpy()
+#         # Count each bin
+#         df_grouped = df[['mag_bin', 'mag_j']].groupby(by='mag_bin', observed=False).agg(
+#             N=('mag_bin', 'count'),
+#             mag_mean=('mag_j', 'mean')
+#         )
+#         df_grouped['log_N'] = np.log10(df_grouped['N'])
+#         df_grouped = df_grouped[df_grouped['log_N'] > 0]
 
-        # Remove outliers
-#         mask = x_data > 10.5
-#         x_data = x_data[mask][:-1]
-#         y_data = y_data[mask][:-1]
+#         # Fit the function iteratively
+#         x_data = df_grouped['mag_mean'].to_numpy()
+#         y_data = df_grouped['log_N'].to_numpy()
 
-        datacount = len(y_data)
-        is_converged = False
-        i = 1
-        while not is_converged:
-            # Fit the parameters
-            if survey != "LAMOST":
-                # Fit linear+parabola model for 6dFGS and SDSS
-                popt, pcov = curve_fit(completeness_linear_parabola, x_data, y_data, p0=[-4.5, 11.5, 5])
-            else:
-                # Fit linear model for LAMOST
-                popt, pcov = curve_fit(completeness_linear, x_data, y_data, p0=[-4.5])
+#         # Remove outliers
+# #         mask = x_data > 10.5
+# #         x_data = x_data[mask][:-1]
+# #         y_data = y_data[mask][:-1]
 
-            # Calculate the predicted values and chi statistics
-            if survey != "LAMOST":
-                y_pred = completeness_linear_parabola(x_data, *popt)
-            else:
-                y_pred = completeness_linear(x_data, *popt)
-            chisq = ((y_data - y_pred) / y_pred)**2
+#         datacount = len(y_data)
+#         is_converged = False
+#         i = 1
+#         while not is_converged:
+#             # Fit the parameters
+#             if survey != "LAMOST":
+#                 # Fit linear+parabola model for 6dFGS and SDSS
+#                 popt, pcov = curve_fit(completeness_linear_parabola, x_data, y_data, p0=[-4.5, 11.5, 5])
+#             else:
+#                 # Fit linear model for LAMOST
+#                 popt, pcov = curve_fit(completeness_linear, x_data, y_data, p0=[-4.5])
 
-            # Reject the 'bad' data (chisq > 0.5)
-            bad_data_indices = chisq > p_val_reject
-            x_data = x_data[~bad_data_indices]
-            y_data = y_data[~bad_data_indices]
-            datacount_new = len(y_data)
+#             # Calculate the predicted values and chi statistics
+#             if survey != "LAMOST":
+#                 y_pred = completeness_linear_parabola(x_data, *popt)
+#             else:
+#                 y_pred = completeness_linear(x_data, *popt)
+#             chisq = ((y_data - y_pred) / y_pred)**2
 
-            is_converged = True if datacount == datacount_new else False
-            datacount = datacount_new
-            i += 1
+#             # Reject the 'bad' data (chisq > 0.5)
+#             bad_data_indices = chisq > p_val_reject
+#             x_data = x_data[~bad_data_indices]
+#             y_data = y_data[~bad_data_indices]
+#             datacount_new = len(y_data)
 
-        # Save survey completeness parameter
-        model_params.append(popt)
+#             is_converged = True if datacount == datacount_new else False
+#             datacount = datacount_new
+#             i += 1
 
-        # Create expected and fitted lines
-        if survey != "LAMOST":
-            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear_parabola(x, *popt))
-        else:
-            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear(x, *popt))
+#         # Save survey completeness parameter
+#         model_params.append(popt)
 
-        df_grouped["N_expected"] = 10 ** (0.6 * df_grouped["mag_mean"] + popt[0])
-        df_grouped["completeness"] = 100 * df_grouped["N"] / df_grouped["N_expected"]
-        df_grouped["completeness_model"] = 100 * df_grouped["N_model"] / df_grouped["N_expected"]
+#         # Create expected and fitted lines
+#         if survey != "LAMOST":
+#             df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear_parabola(x, *popt))
+#         else:
+#             df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear(x, *popt))
 
-        # First plot: log N vs magnitude
-        ax1.scatter(df_grouped['mag_mean'], df_grouped['log_N'], marker=markerstyles_[survey], label=survey)
-        ax1.plot(df_grouped["mag_mean"], np.log10(df_grouped['N_model']), color='red')#, label='linear+parabola')
+#         df_grouped["N_expected"] = 10 ** (0.6 * df_grouped["mag_mean"] + popt[0])
+#         df_grouped["completeness"] = 100 * df_grouped["N"] / df_grouped["N_expected"]
+#         df_grouped["completeness_model"] = 100 * df_grouped["N_model"] / df_grouped["N_expected"]
 
-        ax1.set_title(f"Differential count", fontsize=14)
-        ax1.set_xlabel(r'j_m_ext (mag)', fontsize=14)
-        ax1.set_ylabel(r'$\log N\ (\mathrm{deg}^{-2}\ \mathrm{mag}^{-1})$', fontsize=14)
-        ax1.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax1.yaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax1.tick_params(axis='both', length=7.5, direction='in')
-        ax1.tick_params(which='minor', length=2.5, direction='in')
-        ax1.legend(fontsize=15)
-        ax1.grid(alpha=0.5, ls=':')
+#         # First plot: log N vs magnitude
+#         ax1.scatter(df_grouped['mag_mean'], df_grouped['log_N'], marker=markerstyles_[survey], label=survey)
+#         ax1.plot(df_grouped["mag_mean"], np.log10(df_grouped['N_model']), color='red')#, label='linear+parabola')
 
-        # Second plot: completeness (%) vs magnitude)
-        ax2.scatter(df_grouped["mag_mean"], df_grouped["completeness"], marker=markerstyles_[survey], label=survey)
-        ax2.plot(df_grouped["mag_mean"], df_grouped["completeness_model"], color='red')
-        ax2.axhline(y=100., color='k', ls='--')
+#         ax1.set_title(f"Differential count", fontsize=14)
+#         ax1.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+#         ax1.set_ylabel(r'$\log N\ (\mathrm{deg}^{-2}\ \mathrm{mag}^{-1})$', fontsize=14)
+#         ax1.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+#         ax1.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+#         ax1.tick_params(axis='both', length=7.5, direction='in')
+#         ax1.tick_params(which='minor', length=2.5, direction='in')
+#         ax1.legend(fontsize=15)
+#         ax1.grid(alpha=0.5, ls=':')
 
-        ax2.set_title(f"Magnitude completeness", fontsize=14)
-        ax2.set_xlabel(r'j_m_ext (mag)', fontsize=14)
-        ax2.set_ylabel(r'completeness (%)', fontsize=14)
-        ax2.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax2.yaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax2.tick_params(axis='both', length=7.5, direction='in')
-        ax2.tick_params(which='minor', length=2.5, direction='in')
-        ax2.legend(fontsize=15)
-        ax2.grid(alpha=0.5, ls=':')
-        ax2.set_ylim(0, 140.)
+#         # Second plot: completeness (%) vs magnitude)
+#         ax2.scatter(df_grouped["mag_mean"], df_grouped["completeness"], marker=markerstyles_[survey], label=survey)
+#         ax2.plot(df_grouped["mag_mean"], df_grouped["completeness_model"], color='red')
+#         ax2.axhline(y=100., color='k', ls='--')
+
+#         ax2.set_title(f"Magnitude completeness", fontsize=14)
+#         ax2.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+#         ax2.set_ylabel(r'completeness (%)', fontsize=14)
+#         ax2.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+#         ax2.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+#         ax2.tick_params(axis='both', length=7.5, direction='in')
+#         ax2.tick_params(which='minor', length=2.5, direction='in')
+#         ax2.legend(fontsize=15)
+#         ax2.grid(alpha=0.5, ls=':')
+#         ax2.set_ylim(0, 140.)
         
-        plt.savefig(image_filepath, dpi=300)
+#         plt.savefig(image_filepath, dpi=300)
         
-    pd.DataFrame(model_params, index=SURVEY_LIST, columns=['beta', 'x0', 'b']).to_csv(artifact_filepath)
+#     pd.DataFrame(model_params, index=SURVEY_LIST, columns=['beta', 'x0', 'b']).to_csv(artifact_filepath)
 
-def calculate_completeness(mag, model_params):
-    N_expected = 10 ** (0.6 * mag + model_params[0])
-    N_model = 10 ** completeness_linear_parabola(mag, *model_params)
-    completeness = N_model / N_expected
-    return completeness
+# def calculate_completeness(mag, model_params):
+#     N_expected = 10 ** (0.6 * mag + model_params[0])
+#     N_model = 10 ** completeness_linear_parabola(mag, *model_params)
+#     completeness = N_model / N_expected
+#     return completeness
 
 def fit_FP(
     survey: str,
     df: pd.DataFrame,
-    outlier_output_filepath: str,
     smin: float,
-    use_completeness_model: bool = False,
-    completeness_model_filepath: str = None,
+    param_boundaries: List[Tuple] = PARAM_BOUNDARIES,
     pvals_cut: float = PVALS_CUT,
     zmin: float = ZMIN,
     zmax: float = ZMAX,
@@ -217,38 +224,55 @@ def fit_FP(
     reject_outliers: bool = REJECT_OUTLIERS
           ) -> np.ndarray:
     
-    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane {'=' * 10}")
-    
-    # Set global random seed
-    np.random.seed(42)
+    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane | Ngals = {len(df)} {'=' * 10}")
     
     # Re-apply the magnitude limit
     df = df[(df['j_m_ext'] - df['extinction_j']) <= mag_high]
 
-    # Get some redshift-distance lookup tables
-    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-    # The comoving distance to each galaxy using group redshift as distance indicator
-    dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
+    # Load peculiar velocity model
+    logger.info("Calculating predicted l.o.s. peculiar velocity from model")
+    pv_model = TwoMPP_SDSS_6dF(verbose=True) # type: ignore
 
-    # (1+z) factor because we use luminosity distance
-    Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
-    Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
-    # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
-    Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
-    # Find the corresponding maximum redshift
-    zlim = sp.interpolate.splev(Dlim, lumred_spline)
-    Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
-    df['Sn'] = Sn
+    # Calculate predicted PVs using observed group redshift in CMB frame, and calculate cosmological redshift
+    df['v_pec'] = pv_model.calculate_pv(df['ra'].to_numpy(), df['dec'].to_numpy(), df['z_dist_est'].to_numpy())
+    df['z_pec'] = df['v_pec'] / LIGHTSPEED
+    df['z_cosmo'] = ((1 + df['z_dist_est']) / (1 + df['z_pec'])) - 1
     
-    # Obtain completeness at each magnitude
-    df['C_m'] = 1
-    if use_completeness_model:
-        if survey in ['6dFGS', 'SDSS']:
-            model_params = pd.read_csv(completeness_model_filepath, index_col=0).loc[survey].to_numpy()
-            df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+    # Calculate FN integral limits
+    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
+    d_H = sp.interpolate.splev(df['z_cosmo'].to_numpy(), dist_spline, der=0)
+    df['lmin'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_HIGH) / 5.0
+    df['lmax'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_LOW) / 5.0
 
-    # Apply the correction for missing galaxies
-    Sn = Sn * df['C_m'].to_numpy()
+    # Use Sn (default is not)
+    if False: # Replace this with a variable in the future
+        # Get some redshift-distance lookup tables
+        red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
+        # The comoving distance to each galaxy using group redshift as distance indicator
+        dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0)
+
+        # (1+z) factor because we use luminosity distance
+        Vmin = (1.0 + zmin)**3 * sp.interpolate.splev(zmin, dist_spline)**3
+        Vmax = (1.0 + zmax)**3 * sp.interpolate.splev(zmax, dist_spline)**3
+        # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
+        Dlim = 10.0**((mag_high - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
+        # Find the corresponding maximum redshift
+        zlim = sp.interpolate.splev(Dlim, lumred_spline)
+        Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+        df['Sn'] = Sn
+    else:
+        Sn = 1.0
+        df['Sn'] = Sn
+    
+    # # Obtain completeness at each magnitude
+    # df['C_m'] = 1
+    # if use_completeness_model:
+    #     if survey in ['6dFGS', 'SDSS']:
+    #         model_params = pd.read_csv(completeness_model_filepath, index_col=0).loc[survey].to_numpy()
+    #         df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+
+    # # Apply the correction for missing galaxies
+    # Sn = Sn * df['C_m'].to_numpy()
 
     # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
     data_fit = df
@@ -258,26 +282,23 @@ def fit_FP(
     i = 1
     
     while not is_converged:
-        dz_cluster_fit = sp.interpolate.splev(data_fit["z_dist_est"].to_numpy(), dist_spline)
-        Dlim = 10.0**((mag_high - (data_fit["j_m_ext"] - data_fit['extinction_j']).to_numpy() + 5.0 * np.log10(dz_cluster_fit) + 5.0 * np.log10(1.0 + data_fit["zhelio"])) / 5.0)
-        zlim = sp.interpolate.splev(Dlim, lumred_spline)
 
-        Snfit = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin))) * data_fit['C_m'].to_numpy()
+        Snfit = data_fit["Sn"].to_numpy()
 
         # The range of the FP parameters' values
-        avals, bvals = (1.0, 1.8), (-1.0, -0.5)
-        rvals, svals, ivals = (-0.5, 0.5), (2.0, 2.5), (3.0, 3.5)
-        s1vals, s2vals, s3vals = (0., 0.3), (0.1, 0.5), (0.05, 0.3)
+        avals, bvals = param_boundaries[0], param_boundaries[1]
+        rvals, svals, ivals = param_boundaries[2], param_boundaries[3], param_boundaries[4]
+        s1vals, s2vals, s3vals = param_boundaries[5], param_boundaries[6], param_boundaries[7]
 
         # Fit the FP parameters
         FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin), maxiter=10000, tol=1.0e-6, workers=-1)
+            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy()), maxiter=10000, tol=1.0e-6, workers=-1)
         # Calculate the chi-squared 
-        chi_squared = Sn*FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, sumgals=False, chi_squared_only=True)[0]
+        chi_squared = Sn * FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, df["lmin"].to_numpy() , df["lmax"].to_numpy(), sumgals=False, chi_squared_only=True)[0]
 
         # Calculate the p-value (x,dof)
         pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
-        # Reject galaxies with p-values < pvals_cut
+        # Reject galaxies with p-values < pvals_cut (probabilities of being part of the sample lower than some threshold)
         data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
         # Count the number of rejected galaxies
         badcountnew = len(np.where(pvals < pvals_cut)[0])
@@ -285,22 +306,7 @@ def fit_FP(
         is_converged = True if badcount == badcountnew else False
 
         # logger.info verbose
-        logger.info(f"{'-' * 10} Iteration {i} {'-' * 10}")
-        logger.info(FPparams.x.tolist())
-        a_fit, b_fit, rmean_fit, smean_fit, imean_fit, s1_fit, s2_fit, s3_fit = FPparams.x
-        logger.info(f"a = {round(a_fit, 5)}")
-        logger.info(f"b = {round(b_fit, 5)}")
-        logger.info(f"rmean = {round(rmean_fit, 5)}")
-        logger.info(f"smean = {round(smean_fit, 5)}")
-        logger.info(f"imean = {round(imean_fit, 5)}")
-        logger.info(f"s1 = {round(s1_fit, 5)}")
-        logger.info(f"s2 = {round(s2_fit, 5)}")
-        logger.info(f"s3 = {round(s3_fit, 5)}")
-        logger.info(f"Data count = {len(data_fit)}")
-        logger.info(f"Chi-squared = {sp.stats.chi2.isf(0.01, np.sum(chi_squared)/(len(df) - 8.0))}")
-        logger.info(f"Outlier count = {badcount}")
-        logger.info(f"New outlier count = {badcountnew}")
-        logger.info(f"Converged = {is_converged}")
+        logger.info(f"{'-' * 10} Iteration {i} {'-' * 10} | FP parameters: {FPparams.x.tolist()}")
         
         # Set the new count of rejected galaxies
         badcount = badcountnew
@@ -310,94 +316,74 @@ def fit_FP(
         if reject_outliers == False:
             break
 
-    # Save the cleaned sample
-    logger.info(f'Saving outlier-rejected sample...')
     df = data_fit
-    df.to_csv(outlier_output_filepath, index=False)
+    logger.info(f'Number of galaxies remaining: {len(df)}')
     
     return FPparams.x, df
 
-def sample_likelihood() -> None:
+def sample_likelihood(df: pd.DataFrame,
+                      FP_params: np.ndarray, 
+                      smin: float,
+                      chain_output_filepath: str = None
+                      ) -> np.ndarray:
     # The log-prior function for the FP parameters
-    def log_prior(theta, param_boundaries):
+    def log_prior(theta):
         a, b, rmean, smean, imean, sig1, sig2, sig3 = theta
-        a_bound, b_bound, rmean_bound, smean_bound, imean_bound, s1_bound, s2_bound, s3_bound = param_boundaries
+        a_bound, b_bound, rmean_bound, smean_bound, imean_bound, s1_bound, s2_bound, s3_bound = PARAM_BOUNDARIES
         if a_bound[0] < a < a_bound[1] and b_bound[0] < b < b_bound[1] and rmean_bound[0] < rmean < rmean_bound[1] and smean_bound[0] < smean < smean_bound[1] and imean_bound[0] < imean < imean_bound[1] and s1_bound[0] < sig1 < s1_bound[1] and s2_bound[0] < sig2 < s2_bound[1] and s3_bound[0] < sig3 < s3_bound[1]:
             return 0.0
         else:
             return -np.inf
 
     # Calculate log-posterior distribution
-    def log_probability(theta, param_boundaries, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, dz, kr, Ar, smin, sumgals=True, chi_squared_only=False):
-        lp = log_prior(theta, param_boundaries)
+    def log_probability(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, sumgals=True, chi_squared_only=False):
+        lp = log_prior(theta)
         if not np.isfinite(lp):
             return -np.inf
         else:
-            return lp - FP_func(theta, 0., z, r, s, i, dr, ds, di, Sn, smin, sumgals=True, chi_squared_only=False)
+            return lp - FP_func(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, sumgals, chi_squared_only)
     
-    for survey in NEW_SURVEY_LIST:
-        # Load the outlier-rejected data
-        df = pd.read_csv(OUTLIER_REJECT_OUTPUT_FILEPATH[survey])
+    # Load the observables needed to sample the likelihood
+    z = df['z_cmb'].to_numpy()
+    r = df['r'].to_numpy()
+    s = df['s'].to_numpy()
+    i = df['i'].to_numpy()
+    dr = df['er'].to_numpy()
+    ds = df['es'].to_numpy()
+    di = df['ei'].to_numpy()
+    lmin = df['lmin'].to_numpy()
+    lmax = df['lmax'].to_numpy()
+    Sn = df['Sn'].to_numpy()
 
-        z = df['z_dist_est'].to_numpy()
-        r = df['r'].to_numpy()
-        s = df['s'].to_numpy()
-        i = df['i'].to_numpy()
-        dr = df['er'].to_numpy()
-        ds = df['es'].to_numpy()
-        di = df['ei'].to_numpy()
-        mag_j = df['j_m_ext'].to_numpy()
-        A_j = df['extinction_j'].to_numpy()
+    # # Obtain completeness at each magnitude
+    # df['C_m'] = 1
+    # if COMPLETENESS_SETTING:
+    #     if survey in ['6dFGS', 'SDSS']:
+    #         model_params = pd.read_csv(COMPLETENESS_ARTIFACT_PATH, index_col=0).loc[survey].to_numpy()
+    #         df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+    # # Apply the correction for missing galaxies
+    # Sn = Sn * df['C_m'].to_numpy()
 
-        # Velocity dispersion lower limit
-        if survey == 'ALL_COMBINED':
-            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
-        else:
-            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+    # Specify the initial guess, the number of walkers, and dimensions
+    pos = FP_params + np.min(FP_params) * 1e-1 * np.random.randn(16, 8)
+    nwalkers, ndim = pos.shape
 
-        # Get some redshift-distance lookup tables
-        red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-        # The comoving distance to each galaxy using group redshift as distance indicator
-        dz = sp.interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline, der=0) 
+    # Run the MCMC
+    sampler = emcee.EnsembleSampler(
+        nwalkers, ndim, log_probability, args=(0., z, r, s, i, dr, ds, di, Sn, smin, lmin, lmax, True, False)
+    )
+    sampler.run_mcmc(pos, 5000, progress=True, skip_initial_state_check=True)
 
-        # (1+z) factor because we use luminosity distance
-        Vmin = (1.0 + ZMIN)**3 * sp.interpolate.splev(ZMIN, dist_spline)**3
-        Vmax = (1.0 + ZMAX)**3 * sp.interpolate.splev(ZMAX, dist_spline)**3
-        # Maximum (luminosity) distance the galaxy can be observed given MAG_HIGH (survey limiting magnitude)
-        Dlim = 10.0**((MAG_HIGH - (df["j_m_ext"] - df['extinction_j']) + 5.0 * np.log10(dz) + 5.0 * np.log10(1.0 + df["zhelio"])) / 5.0)    
-        # Find the corresponding maximum redshift
-        zlim = sp.interpolate.splev(Dlim, lumred_spline)
-        Sn = np.where(zlim >= ZMAX, 1.0, np.where(zlim <= ZMIN, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
+    # Flatten the chain and save as numpy array
+    flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+    if chain_output_filepath is not None:
+        np.save(chain_output_filepath, flat_samples)
 
-        # Obtain completeness at each magnitude
-        df['C_m'] = 1
-        if COMPLETENESS_SETTING:
-            if survey in ['6dFGS', 'SDSS']:
-                model_params = pd.read_csv(COMPLETENESS_ARTIFACT_PATH, index_col=0).loc[survey].to_numpy()
-                df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+    # Get the mean values of the marginalized distribution
+    x_ = flat_samples.T
+    FP_params_mean = np.mean(x_, axis=1)
 
-        # Apply the correction for missing galaxies
-        Sn = Sn * df['C_m'].to_numpy()
-
-        # Load the best-fit parameters
-        FP_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[survey].to_numpy()
-
-        # Specify the initial guess, the number of walkers, and dimensions
-        pos = FP_params + 1e-2 * np.random.randn(16, 8)
-        nwalkers, ndim = pos.shape
-
-        # Flat prior boundaries (same order as FP_params)
-        param_boundaries = [(1.0, 1.8), (-1.0, -0.5), (-0.5, 0.5), (1.8, 2.5), (2.8, 3.5), (0.0, 0.3), (0.1, 0.5), (0.05, 0.3)]
-
-        # Run the MCMC
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability, args=(param_boundaries, 0., z, r, s, i, dr, ds, di, Sn, dz, 0., 0., smin, True, False)
-        )
-        sampler.run_mcmc(pos, 5000, progress=True, skip_initial_state_check=True)
-
-        # Flatten the chain and save as numpy array
-        flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
-        np.save(MCMC_CHAIN_OUTPUT_FILEPATH[survey], flat_samples)
+    return FP_params_mean
         
 def generate_corner_plot() -> None:
     # Set border thickness
@@ -448,51 +434,51 @@ def generate_corner_plot() -> None:
 
     g.export(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH, dpi=300)
 
-def fit_likelihood() -> None:
-    def fit_and_plot(posteriors, fp_paramname, fp_labelname, axis):
-        def gaus(x, mu, sig):
-            return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
+# def fit_likelihood() -> None:
+#     def fit_and_plot(posteriors, fp_paramname, fp_labelname, axis):
+#         def gaus(x, mu, sig):
+#             return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
         
-        xdata = posteriors[fp_paramname]
-        y, x_edges = np.histogram(xdata, bins=N, density=True)
-        x = (x_edges[1:] + x_edges[:-1])/2
-        popt, pcov = curve_fit(gaus, x, y, p0=[np.mean(xdata), np.std(xdata)])
-        popt[1] = np.absolute(popt[1])
+#         xdata = posteriors[fp_paramname]
+#         y, x_edges = np.histogram(xdata, bins=N, density=True)
+#         x = (x_edges[1:] + x_edges[:-1])/2
+#         popt, pcov = curve_fit(gaus, x, y, p0=[np.mean(xdata), np.std(xdata)])
+#         popt[1] = np.absolute(popt[1])
         
-        axis.hist(xdata, bins=N, density=True, alpha=0.5)
-        axis.plot(x, norm.pdf(x, loc=popt[0], scale=popt[1]), color='black')
-        axis.set_xlabel(fp_labelname, fontsize=15)
-        axis.set_title(r'%.4f' % popt[0] + ' $\pm$ %.4f' % popt[1])
-        logger.info(f"{'=' * 20} {fp_paramname} {'=' * 20}")
-        logger.info(f'Mean of {fp_paramname} = {round(popt[0], 4)}')
-        logger.info(f'Std of {fp_paramname} = {round(popt[1], 4)}')
-        fig.tight_layout(pad=1.0)
+#         axis.hist(xdata, bins=N, density=True, alpha=0.5)
+#         axis.plot(x, norm.pdf(x, loc=popt[0], scale=popt[1]), color='black')
+#         axis.set_xlabel(fp_labelname, fontsize=15)
+#         axis.set_title(r'%.4f' % popt[0] + ' $\pm$ %.4f' % popt[1])
+#         logger.info(f"{'=' * 20} {fp_paramname} {'=' * 20}")
+#         logger.info(f'Mean of {fp_paramname} = {round(popt[0], 4)}')
+#         logger.info(f'Std of {fp_paramname} = {round(popt[1], 4)}')
+#         fig.tight_layout(pad=1.0)
     
-    N = 50
-    for survey in NEW_SURVEY_LIST:
-        logger.info(f"Fitting the FP likelihood of {survey}")
-        post_dist = np.load(MCMC_CHAIN_OUTPUT_FILEPATH[survey]).T
-        posteriors = {
-            'a': post_dist[0],
-            'b': post_dist[1],
-            'rmean': post_dist[2],
-            'smean': post_dist[3],
-            'imean': post_dist[4],
-            'sigma1': post_dist[5],
-            'sigma2': post_dist[6],
-            'sigma3': post_dist[7]
-        }
+#     N = 50
+#     for survey in NEW_SURVEY_LIST:
+#         logger.info(f"Fitting the FP likelihood of {survey}")
+#         post_dist = np.load(MCMC_CHAIN_OUTPUT_FILEPATH[survey]).T
+#         posteriors = {
+#             'a': post_dist[0],
+#             'b': post_dist[1],
+#             'rmean': post_dist[2],
+#             'smean': post_dist[3],
+#             'imean': post_dist[4],
+#             'sigma1': post_dist[5],
+#             'sigma2': post_dist[6],
+#             'sigma3': post_dist[7]
+#         }
         
-        fp_paramname_list = ['a', 'b', 'rmean', 'smean', 'imean', 'sigma1', 'sigma2', 'sigma3']
-        fp_labelname_list = [r'$a$', r'$b$', r'$\bar{r}$', r'$\bar{s}$', r'$\bar{\imath}$', r'$\sigma_1$', r'$\sigma_2$', r'$\sigma_3$']
+#         fp_paramname_list = ['a', 'b', 'rmean', 'smean', 'imean', 'sigma1', 'sigma2', 'sigma3']
+#         fp_labelname_list = [r'$a$', r'$b$', r'$\bar{r}$', r'$\bar{s}$', r'$\bar{\imath}$', r'$\sigma_1$', r'$\sigma_2$', r'$\sigma_3$']
         
-        fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(GOLDEN_RATIO * 8, 8))
-        fig.delaxes(fig.axes[2])
+#         fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(GOLDEN_RATIO * 8, 8))
+#         fig.delaxes(fig.axes[2])
         
-        for idx, ax in enumerate(fig.axes):
-            fit_and_plot(posteriors, fp_paramname_list[idx], fp_labelname_list[idx], ax)
-        fig.savefig(LIKELIHOOD_DIST_IMG_FILEPATH[survey])
-        logger.info('\n')
+#         for idx, ax in enumerate(fig.axes):
+#             fit_and_plot(posteriors, fp_paramname_list[idx], fp_labelname_list[idx], ax)
+#         fig.savefig(LIKELIHOOD_DIST_IMG_FILEPATH[survey])
+#         logger.info('\n')
 
 def calculate_fp_scatter() -> None:
     results = []
@@ -541,9 +527,9 @@ def main() -> None:
         logger.info(f'ZMAX = {ZMAX}')
 
         # Model the magnitude completeness
-        model_completeness(['6dFGS', 'SDSS', 'LAMOST'])
+        # model_completeness(['6dFGS', 'SDSS', 'LAMOST'])
 
-        # Fit the FP for each survey
+        # Fit the FP for each survey and sample the likelihood
         FP_params = []
         for survey in NEW_SURVEY_LIST:
             # Get input filepath
@@ -551,11 +537,8 @@ def main() -> None:
             df = pd.read_csv(input_filepath)
 
             # Get completeness setting
-            use_completeness_model = True if COMPLETENESS_SETTING == 1 else False
-            completeness_model_filepath = COMPLETENESS_ARTIFACT_PATH if use_completeness_model else None
-
-            # Get output filepath
-            output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
+            # use_completeness_model = True if COMPLETENESS_SETTING == 1 else False
+            # completeness_model_filepath = COMPLETENESS_ARTIFACT_PATH if use_completeness_model else None
 
             # Velocity dispersion lower limit
             if survey == 'ALL_COMBINED':
@@ -563,25 +546,39 @@ def main() -> None:
             else:
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
-            params, _ = fit_FP(
+            # FP parameter boundaries to search the maximum over
+            param_boundaries = PARAM_BOUNDARIES
+
+            params, df_fitted = fit_FP(
                 survey=survey,
                 df=df,
-                outlier_output_filepath=output_filepath,
                 smin=smin,
-                use_completeness_model=use_completeness_model,
-                completeness_model_filepath=completeness_model_filepath,
+                param_boundaries=param_boundaries,
                 reject_outliers=True
             )
             FP_params.append(params)
+
+            # Save the cleaned sample
+            output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
+            df_fitted.to_csv(output_filepath, index=False)
+
+            # Sample the likelihood
+            chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
+            params_mean = sample_likelihood(
+                df=df_fitted,
+                FP_params=params,
+                smin=smin,
+                chain_output_filepath=chain_output_filepath
+                )
+            # Calculate difference between likelihood sampling and diff. evo. algorithm
+            params_diff = params - params_mean
+            logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
         
         # Convert the FP parameters to dataframe and save to artifacts folder
         logger.info("Saving the derived FP fits to artifacts folder...")
         FP_params = np.array(FP_params)
         FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
         pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
-        
-        # logger.info("Sampling the likelihood with MCMC...")
-        # sample_likelihood()
         
         # logger.info("Generating corner plot...")
         # generate_corner_plot()

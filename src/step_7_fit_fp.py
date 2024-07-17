@@ -84,7 +84,7 @@ create_parent_folder(FP_SCATTER_FILEPATH)
 # User-defined variables
 PVALS_CUT = 0.01
 REJECT_OUTLIERS = True
-PARAM_BOUNDARIES = [(1.2, 1.6), (-0.9, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.2, 3.5), (0.0, 0.06), (0.25, 0.45), (0.1, 0.25)]
+PARAM_BOUNDARIES = [(1.2, 1.6), (-0.9, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.2, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
 
 # Set global random seed
 np.random.seed(42)
@@ -365,7 +365,7 @@ def sample_likelihood(df: pd.DataFrame,
     # Sn = Sn * df['C_m'].to_numpy()
 
     # Specify the initial guess, the number of walkers, and dimensions
-    pos = FP_params + np.min(FP_params) * 1e-1 * np.random.randn(16, 8)
+    pos = FP_params + 1e-4 * np.random.randn(16, 8)
     nwalkers, ndim = pos.shape
 
     # Run the MCMC

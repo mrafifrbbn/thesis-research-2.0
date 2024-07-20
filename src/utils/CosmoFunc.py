@@ -224,7 +224,7 @@ def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
     return np.log(FN)
 
 # The likelihood function for the Fundamental Plane
-def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, sumgals=True, chi_squared_only=False, veldisp_only=False):
+def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals=True, chi_squared_only=False, veldisp_only=False):
     
     a, b, rmean, smean, imean, sigma1, sigma2, sigma3 = params
     k = 0.0
@@ -255,7 +255,7 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
     I = cov_r*cov_s - sigmars**2	
 
     sdiff, idiff = s - smean, i - imean
-    rnew = r - np.tile(logdists, (len(r), 1)).T # True r (r_observed - logdist)
+    rnew = r - np.tile(logdists, (len(r), 1)).T
     rdiff = rnew - rmean
 
     det = cov_r*A + sigmars*B + cov_ri*C
@@ -266,14 +266,14 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
     if veldisp_only:
         # Compute the FN term for the Scut only
         delta = (A*F**2 + I*B**2 - 2.0*B*C*F)/det
-        FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn
+        FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn + np.log(C_m)
     else:
-        FN = FN_func(params, z_obs, err_r, err_s, err_i, lmin, lmax, smin)
+        FN = FN_func(params, z_obs, err_r, err_s, err_i, lmin, lmax, smin) + np.log(C_m)
 
     if chi_squared_only:
         return chi_squared
     elif sumgals:
-        return 0.5 * np.sum(chi_squared + log_det + 2.0*FN)
+        return 0.5 * np.sum(chi_squared + log_det + 2.0 * FN)
     else:
         return 0.5 * (chi_squared + log_det)
 

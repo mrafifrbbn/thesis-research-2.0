@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from typing import List, Dict
 
 from utils.constants import *
 from utils.logging_config import get_logger
@@ -37,6 +38,7 @@ OUTPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTPUT_FILEPATH)
@@ -50,6 +52,12 @@ create_parent_folder(XDATA_ARTIFACT_FILEPATH)
 create_parent_folder(YDATA_ARTIFACT_FILEPATH)
 
 IMG_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'img/phot_error/smin_setting_{SMIN_SETTING}.png')
+
+COMPLETENESS_ARTIFACT_PATH = os.path.join(ROOT_PATH, f"artifacts/magnitude_completeness/smin_setting_{SMIN_SETTING}/completeness_model.csv")
+create_parent_folder(COMPLETENESS_ARTIFACT_PATH)
+
+COMPLETENESS_IMAGE_PATH = os.path.join(ROOT_PATH, f"img/magnitude_completeness/smin_setting_{SMIN_SETTING}/completeness_model.png")
+create_parent_folder(COMPLETENESS_IMAGE_PATH)
 
 # Piecewise linear function
 def piecewise_linear(x: np.ndarray, x0: float, y0: float, k: float) -> np.ndarray:
@@ -167,20 +175,160 @@ def apply_phot_error(popt: np.ndarray) -> None:
         df = df[REQ_COLS[survey]].rename({'r_j': 'r', 'er_j': 'er', 's_scaled': 's', 'es_scaled': 'es', 'i_j': 'i', 'ei_j': 'ei'}, axis=1)
         df.to_csv(OUTPUT_FILEPATH[survey], index=False)
 
-def combine_all() -> None:
+def model_completeness(
+    surveys: List[str] = SURVEY_LIST,
+    markerstyles_: Dict[str, str] = DEFAULT_MARKERSTYLES,
+    lower_mag: float = MAG_LOW,
+    upper_mag: float = MAG_HIGH,
+    bin_width: float = COMPLETENESS_BIN_WIDTH,
+    p_val_reject: float = 0.01,
+    artifact_filepath: str = COMPLETENESS_ARTIFACT_PATH,
+    image_filepath: str = COMPLETENESS_IMAGE_PATH
+):
+    model_params = []
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(FIGURE_WIDTH * 2, FIGURE_HEIGHT))
+    for survey in SURVEY_LIST:
+        filepath = OUTPUT_FILEPATH.get(survey)
+        df = pd.read_csv(filepath)
+
+        # Extinction-corrected magnitude
+        df['mag_j'] = df['j_m_ext'] - df['extinction_j']
+
+        # Create magnitude histogram
+        bins_ = np.arange(lower_mag, upper_mag + bin_width, bin_width)
+        labels_ = [i for i in range(1, len(bins_))]
+        df['mag_bin'] = pd.cut(df['mag_j'], bins_, labels=labels_)
+
+        # Count each bin
+        df_grouped = df[['mag_bin', 'mag_j']].groupby(by='mag_bin', observed=False).agg(
+            N=('mag_bin', 'count'),
+            mag_mean=('mag_j', 'mean')
+        )
+        df_grouped['log_N'] = np.log10(df_grouped['N'])
+        df_grouped = df_grouped[df_grouped['log_N'] > 0]
+
+        # Fit the function iteratively
+        x_data = df_grouped['mag_mean'].to_numpy()
+        y_data = df_grouped['log_N'].to_numpy()
+
+        # Remove outliers
+#         mask = x_data > 10.5
+#         x_data = x_data[mask][:-1]
+#         y_data = y_data[mask][:-1]
+
+        datacount = len(y_data)
+        is_converged = False
+        i = 1
+        while not is_converged:
+            # Fit the parameters
+            if survey != "LAMOST":
+                # Fit linear+parabola model for 6dFGS and SDSS
+                popt, pcov = curve_fit(completeness_linear_parabola, x_data, y_data, p0=[-4.5, 11.5, 5])
+            else:
+                # Fit linear model for LAMOST
+                popt, pcov = curve_fit(completeness_linear, x_data, y_data, p0=[-4.5])
+
+            # Calculate the predicted values and chi statistics
+            if survey != "LAMOST":
+                y_pred = completeness_linear_parabola(x_data, *popt)
+            else:
+                y_pred = completeness_linear(x_data, *popt)
+            chisq = ((y_data - y_pred) / y_pred)**2
+
+            # Reject the 'bad' data (chisq > 0.5)
+            bad_data_indices = chisq > p_val_reject
+            x_data = x_data[~bad_data_indices]
+            y_data = y_data[~bad_data_indices]
+            datacount_new = len(y_data)
+
+            is_converged = True if datacount == datacount_new else False
+            datacount = datacount_new
+            i += 1
+
+        # Save survey completeness parameter
+        model_params.append(popt)
+
+        # Create expected and fitted lines
+        if survey != "LAMOST":
+            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear_parabola(x, *popt))
+        else:
+            df_grouped['N_model'] = df_grouped["mag_mean"].apply(lambda x: 10 ** completeness_linear(x, *popt))
+
+        df_grouped["N_expected"] = 10 ** (0.6 * df_grouped["mag_mean"] + popt[0])
+        df_grouped["completeness"] = 100 * df_grouped["N"] / df_grouped["N_expected"]
+        df_grouped["completeness_model"] = 100 * df_grouped["N_model"] / df_grouped["N_expected"]
+
+        # First plot: log N vs magnitude
+        ax1.scatter(df_grouped['mag_mean'], df_grouped['log_N'], marker=markerstyles_[survey]) #, label=survey)
+        ax1.plot(df_grouped["mag_mean"], np.log10(df_grouped['N_model']), color='red')#, label='linear+parabola')
+
+        ax1.set_title(f"Differential count", fontsize=14)
+        ax1.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+        ax1.set_ylabel(r'$\log N\ (\mathrm{deg}^{-2}\ \mathrm{mag}^{-1})$', fontsize=14)
+        # ax1.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        # ax1.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+        # ax1.tick_params(axis='both', length=7.5, direction='in')
+        # ax1.tick_params(which='minor', length=2.5, direction='in')
+        # ax1.legend(fontsize=15)
+        ax1.grid(alpha=0.5, ls=':')
+
+        # Second plot: completeness (%) vs magnitude)
+        ax2.scatter(df_grouped["mag_mean"], df_grouped["completeness"], marker=markerstyles_[survey]) #, label=survey)
+        ax2.plot(df_grouped["mag_mean"], df_grouped["completeness_model"], color='red')
+        ax2.axhline(y=100., color='k', ls='--')
+
+        ax2.set_title(f"Magnitude completeness", fontsize=14)
+        ax2.set_xlabel(r'j_m_ext (mag)', fontsize=14)
+        ax2.set_ylabel(r'completeness (%)', fontsize=14)
+        # ax2.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        # ax2.yaxis.set_minor_locator(ticker.AutoMinorLocator())
+        # ax2.tick_params(axis='both', length=7.5, direction='in')
+        # ax2.tick_params(which='minor', length=2.5, direction='in')
+        # ax2.legend(fontsize=15)
+        ax2.grid(alpha=0.5, ls=':')
+        ax2.set_ylim(0, 140.)
+        
+        plt.savefig(image_filepath, dpi=300)
+        
+    pd.DataFrame(model_params, index=SURVEY_LIST, columns=['beta', 'x0', 'b']).to_csv(artifact_filepath)
+
+def calculate_completeness(mag, model_params):
+    N_expected = 10 ** (0.6 * mag + model_params[0])
+    N_model = 10 ** completeness_linear_parabola(mag, *model_params)
+    completeness = N_model / N_expected
+    return completeness
+
+def combine_sdss_lamost() -> None:
     # Create empty dataframe
     df = pd.DataFrame()
-    # Combine FP samples of all survey into a single sample
-    for filepath in list(OUTPUT_FILEPATH.values())[:-1]:
+    # Combine FP samples from SDSS and LAMOST into a single sample'
+    for survey in ['SDSS', 'LAMOST']:
+        filepath = OUTPUT_FILEPATH.get(survey)
         data = pd.read_csv(filepath)
         df = pd.concat([df, data])
     # Drop duplicate measurements and keep the first (should be 6dFGS > SDSS > LAMOST)
     count_ = len(df)
-    logger.info(f"Number of combined galaxies = {count_}.")
+    logger.info(f"Number of combined SDSS+LAMOST galaxies = {count_}.")
     df = df.drop_duplicates(subset='tmass')
-    logger.info(f"Number of unique galaxies = {len(df)}. Galaxies dropped = {count_ - len(df)}.")
+    logger.info(f"Number of unique SDSS+LAMOST galaxies = {len(df)}. Galaxies dropped = {count_ - len(df)}.")
 
-    df.to_csv(OUTPUT_FILEPATH['ALL_COMBINED'], index=False)
+    df.to_csv(OUTPUT_FILEPATH.get('SDSS_LAMOST'), index=False)
+
+def combine_all() -> None:
+    # Create empty dataframe
+    df = pd.DataFrame()
+    # Combine FP samples of all survey into a single sample
+    for survey in ['6dFGS', 'SDSS', 'LAMOST']:
+        filepath = OUTPUT_FILEPATH.get(survey)
+        data = pd.read_csv(filepath)
+        df = pd.concat([df, data])
+    # Drop duplicate measurements and keep the first (should be 6dFGS > SDSS > LAMOST)
+    count_ = len(df)
+    logger.info(f"Number of combined 6dF+SDSS+LAMOST galaxies = {count_}.")
+    df = df.drop_duplicates(subset='tmass')
+    logger.info(f"Number of unique 6dF+SDSS+LAMOST galaxies = {len(df)}. Galaxies dropped = {count_ - len(df)}.")
+
+    df.to_csv(OUTPUT_FILEPATH.get('ALL_COMBINED'), index=False)
 
 def main() -> None:
     try:
@@ -192,12 +340,39 @@ def main() -> None:
         logger.info("Applying photometric errors and selecting the final columns...")
         apply_phot_error(popt)
         logger.info("Applying photometric errors and selecting the final columns successful!")
+        
+        # Modelling the magnitude completeness
+        logger.info("Modelling magnitude completeness...")
+        model_completeness()
+        logger.info("Modelling magnitude completeness successful!")
 
+        logger.info("Calculating completeness for each galaxy...")
+        # Obtain completeness at each magnitude
+        for survey in SURVEY_LIST:
+            filepath = OUTPUT_FILEPATH.get(survey)
+            df = pd.read_csv(filepath)
+
+            # Set C_m = 1 by default
+            df['C_m'] = 1
+            if survey in ['6dFGS', 'SDSS']:
+                model_params = pd.read_csv(COMPLETENESS_ARTIFACT_PATH, index_col=0).loc[survey].to_numpy()
+                df['C_m'] = (df['j_m_ext'] - df['extinction_j']).apply(lambda x: calculate_completeness(x, model_params))
+            
+            df.to_csv(filepath, index=False)
+        logger.info("Calculating completeness for each galaxy successful!")
+        
+        # If veldisp cut is uniform, combine samples into a single sample (SDSS+LAMOST and 6dFGS+SDSS+LAMOST)
         if SMIN_SETTING==1:
+            logger.info("Combining SDSS+LAMOST galaxies into a single sample...")
+            combine_sdss_lamost()
+            logger.info("Combining SDSS+LAMOST galaxies into a single sample successful!")
+            
             logger.info("Combining all galaxies into a single sample...")
             combine_all()
             logger.info("Combining all galaxies into a single sample successful!")
+
         logger.info('\n')
+
     except Exception as e:
         logger.error(f'Deriving photometric errors failed. Reason: {e}.')
     

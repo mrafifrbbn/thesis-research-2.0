@@ -255,7 +255,7 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
     I = cov_r*cov_s - sigmars**2	
 
     sdiff, idiff = s - smean, i - imean
-    rnew = r - np.tile(logdists, (len(r), 1)).T
+    rnew = r - np.tile(logdists, (len(r), 1)).T # True r (r_observed - logdist)
     rdiff = rnew - rmean
 
     det = cov_r*A + sigmars*B + cov_ri*C

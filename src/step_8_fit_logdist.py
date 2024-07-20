@@ -18,9 +18,9 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
-FP_SETTING = int(os.environ.get('FP_SETTING'))
+# FP_SETTING = int(os.environ.get('FP_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = SURVEY_LIST #(SURVEY_LIST + ['ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_logdist')
@@ -30,40 +30,45 @@ INPUT_FILEPATH = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
 FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
 
 LOGDIST_POSTERIOR_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_posterior.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_posterior.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_posterior.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined_posterior.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/6dfgs_posterior.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/sdss_posterior.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/lamost_posterior.npy'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost_posterior.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/all_combined_posterior.npy')
 }
 create_parent_folder(LOGDIST_POSTERIOR_OUTPUT_FILEPATH)
 
 LOGDIST_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined.csv')
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/lamost.csv'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(LOGDIST_OUTPUT_FILEPATH)
 
 CURVEFIT_COMPARISON_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/p_setting_{FP_SETTING}/all_combined.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost.png'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined.png')
 }
 create_parent_folder(CURVEFIT_COMPARISON_IMG_FILEPATH)
 
 POSTERIOR_SKEWNESS_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/6dfgs_skewness.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/sdss_skewness.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/lamost_skewness.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_setting_{FP_SETTING}/all_combined_skewness.png')
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_skewness.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_skewness.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost_skewness.png'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost_skewness.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined_skewness.png')
 }
 create_parent_folder(POSTERIOR_SKEWNESS_IMG_FILEPATH)
 
@@ -71,25 +76,24 @@ def fit_logdist(
         survey: str,
         df: pd.DataFrame,
         smin: float,
-        FPparams: List[float],
+        FPlabel: str,
+        FPparams: np.ndarray,
         mag_high: float = MAG_HIGH,
         mag_low: float = MAG_LOW,
-        save_posterior: bool = False,
-        logdist_posterior_filepath: str = None
+        save_posterior: bool = False
     ) -> pd.DataFrame:
     """
     This is a function to calculate the log-distance ratio posteriors and obtain summary statistics.
     Summary statistics are obtained using two methods: direct calculation assuming skew-normal and 
     fitting using scipy's curve_fit assuming Gaussian.
     """
-    logger.info(f"Calculating the logdistance PDF for galaxies in {survey} | Best-fits FP: {FPparams}")
+    logger.info(f"Calculating the logdistance PDF for galaxies in {survey} | FP: {list(FPparams)}")
 
     # Get some redshift-distance lookup tables
     red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-    dz = sp.interpolate.splev(df["z_cmb"].to_numpy()/LightSpeed, dist_spline)
+    dz = sp.interpolate.splev(df["z_cmb"].to_numpy() / LightSpeed, dist_spline)
     dz_cluster = sp.interpolate.splev(df["z_dist_est"], dist_spline)
-    FPparams = np.array(FPparams)
-    logger.info(f'Number of {survey} data = {len(df)}. FP best fits = {FPparams}')
+    logger.info(f'Number of {survey} data = {len(df)}.')
 
     # Define the range of logdists values to be calculated
     dmin, dmax, nd = -1.5, 1.5, 1001
@@ -99,8 +103,9 @@ def fit_logdist(
     d_H = np.outer(10.0**(-dbins), dz_cluster)
     lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
     lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
-    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), sumgals=False)
-    start = time.time()
+    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False)
+    
+    # Calculate full FN
     FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
 
     # Convert to the PDF for logdistance
@@ -124,17 +129,18 @@ def fit_logdist(
     loc = mean - scale * delta * np.sqrt(2.0 / np.pi)
     alpha = delta / (np.sqrt(1.0 - delta**2))
 
-    # Store the skew-normal values calculated analytically to the dataframe
-    df["logdist_mean"] = mean
-    df["logdist_std"] = err
-    df["logdist_alpha"] = alpha
-    df["logdist_loc"] = loc
-    df["logdist_scale"] = scale
+    # # Store the skew-normal values calculated analytically to the dataframe
+    # df["logdist_mean"] = mean
+    # df["logdist_std"] = err
+    # df["logdist_alpha"] = alpha
+    # df["logdist_loc"] = loc
+    # df["logdist_scale"] = scale
 
     # Transpose the PDF and return to linear unit
     y = np.exp(logP_dist.T)
     # Save the posterior distributions
     if save_posterior:
+        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/{survey.lower()}_posterior_{FPlabel.lower()}_fp.npy')
         np.save(logdist_posterior_filepath, y)
 
     # Find mean and standard deviation of the distribution using curve_fit
@@ -152,9 +158,9 @@ def fit_logdist(
         chisquare = np.sum((y_ - ypred)**2 / ypred, axis=0)
         chisq.append(chisquare)
 
-    df['logdist_mean_cf'] = logdist_mean
-    df['logdist_std_cf'] = logdist_std
-    df['logdist_chisq_cf'] = chisq
+    df[f'logdist_{FPlabel.lower()}'] = logdist_mean
+    df[f'logdist_err_{FPlabel.lower()}'] = logdist_std
+    df[f'logdist_chisq_{FPlabel.lower()}'] = chisq
     
     return df
 
@@ -218,34 +224,31 @@ def main() -> None:
     try:
         logger.info(f"{'=' * 50}")
         logger.info('Fitting log-distance ratios...')
-        logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}. FP_SETTING = {FP_SETTING}.')
+        logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}.')
         
-        for survey in SURVEY_LIST:
+        for survey in NEW_SURVEY_LIST:
             # Get input filename (outlier-rejected sample)
             input_filepath = INPUT_FILEPATH[survey]
             df = pd.read_csv(input_filepath)
             
             # Survey's veldisp limit
-            if survey == 'ALL_COMBINED':
+            if SMIN_SETTING == 1:
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
             else:
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
-                
-            # Get the FP parameters to be used for fitting
-            FPparams = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[SURVEY_FP_SETTING[FP_SETTING][survey]].to_numpy()
-            # print("LALALA", survey, FP_FIT_FILEPATH, FPparams)
-            
-            # Logdist posterior filepath
-            logdist_posterior_filepath = LOGDIST_POSTERIOR_OUTPUT_FILEPATH[survey]
-            
-            df = fit_logdist(
-                survey=survey,
-                df=df,
-                smin=smin,
-                FPparams=FPparams,
-                save_posterior=True,
-                logdist_posterior_filepath=logdist_posterior_filepath
-                    )
+
+            # Iterate all available FP
+            FPparams = pd.read_csv(FP_FIT_FILEPATH, index_col=0)
+
+            for fp_label, params in FPparams.iterrows():
+                df = fit_logdist(
+                    survey=survey,
+                    df=df,
+                    smin=smin,
+                    FPlabel=fp_label,
+                    FPparams=params,
+                    save_posterior=True
+                        )
 
             # Get output filename
             logdist_output_filepath = LOGDIST_OUTPUT_FILEPATH[survey]

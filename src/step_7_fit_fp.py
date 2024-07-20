@@ -31,7 +31,7 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = ['SDSS_LAMOST', 'ALL_COMBINED'] # (SURVEY_LIST + ['SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')

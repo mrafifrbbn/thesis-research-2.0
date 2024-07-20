@@ -28,14 +28,14 @@ if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
 from utils.constants import *
 from utils.CosmoFunc import *
 from utils.logging_config import get_logger
-from pvhub import *
+from pvhub import * # type:ignore
 
 import emcee
 import getdist
 from getdist import plots, MCSamples
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))

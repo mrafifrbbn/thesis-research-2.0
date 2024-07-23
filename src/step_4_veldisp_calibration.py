@@ -8,7 +8,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 from utils.constants import *
 

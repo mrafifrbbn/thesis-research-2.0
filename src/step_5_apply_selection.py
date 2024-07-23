@@ -6,7 +6,7 @@ import pandas as pd
 from utils.constants import *
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))

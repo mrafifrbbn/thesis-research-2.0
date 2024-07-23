@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
 

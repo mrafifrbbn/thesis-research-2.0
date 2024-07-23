@@ -5,7 +5,7 @@ from astropy.io import fits
 from astropy.table import Table
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 # Environment variable
 ROOT_PATH = os.environ.get('ROOT_PATH')

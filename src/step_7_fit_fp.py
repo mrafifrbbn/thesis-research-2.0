@@ -376,76 +376,76 @@ def calculate_fp_scatter() -> None:
     df.to_csv(FP_SCATTER_FILEPATH, index=True)
 
 def main() -> None:
-    # try:
-    logger.info(f'{"=" * 50}')
-    logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
-    logger.info(f'Sample selection constants:')
-    logger.info(f'OMEGA_M = {OMEGA_M}')
-    logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
-    logger.info(f'MAG_LOW = {MAG_LOW}')
-    logger.info(f'MAG_HIGH = {MAG_HIGH}')
-    logger.info(f'ZMIN = {ZMIN}')
-    logger.info(f'ZMAX = {ZMAX}')
+    try:
+        # logger.info(f'{"=" * 50}')
+        # logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
+        # logger.info(f'Sample selection constants:')
+        # logger.info(f'OMEGA_M = {OMEGA_M}')
+        # logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
+        # logger.info(f'MAG_LOW = {MAG_LOW}')
+        # logger.info(f'MAG_HIGH = {MAG_HIGH}')
+        # logger.info(f'ZMIN = {ZMIN}')
+        # logger.info(f'ZMAX = {ZMAX}')
 
-    # Fit the FP for each survey and sample the likelihood
-    FP_params = []
-    for survey in NEW_SURVEY_LIST:
-        # Get input filepath
-        input_filepath = INPUT_FILEPATH[survey]
-        df = pd.read_csv(input_filepath)
+        # # Fit the FP for each survey and sample the likelihood
+        # FP_params = []
+        # for survey in NEW_SURVEY_LIST:
+        #     # Get input filepath
+        #     input_filepath = INPUT_FILEPATH[survey]
+        #     df = pd.read_csv(input_filepath)
 
-        # Velocity dispersion lower limit
-        if SMIN_SETTING == 1:
-            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
-        else:
-            smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+        #     # Velocity dispersion lower limit
+        #     if SMIN_SETTING == 1:
+        #         smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
+        #     else:
+        #         smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
-        # FP parameter boundaries to search the maximum over
-        param_boundaries = PARAM_BOUNDARIES
+        #     # FP parameter boundaries to search the maximum over
+        #     param_boundaries = PARAM_BOUNDARIES
 
-        params, df_fitted = fit_FP(
-            survey=survey,
-            df=df,
-            smin=smin,
-            param_boundaries=param_boundaries,
-            reject_outliers=True
-        )
-        FP_params.append(params)
+        #     params, df_fitted = fit_FP(
+        #         survey=survey,
+        #         df=df,
+        #         smin=smin,
+        #         param_boundaries=param_boundaries,
+        #         reject_outliers=True
+        #     )
+        #     FP_params.append(params)
 
-        # Save the cleaned sample
-        output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
-        df_fitted.to_csv(output_filepath, index=False)
+        #     # Save the cleaned sample
+        #     output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
+        #     df_fitted.to_csv(output_filepath, index=False)
 
-        # Sample the likelihood
-        chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
-        params_mean = sample_likelihood(
-            df=df_fitted,
-            FP_params=params,
-            smin=smin,
-            chain_output_filepath=chain_output_filepath
-            )
-        # Calculate difference between likelihood sampling and diff. evo. algorithm
-        params_diff = params - params_mean
-        logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
-    
-    # Convert the FP parameters to dataframe and save to artifacts folder
-    logger.info("Saving the derived FP fits to artifacts folder...")
-    FP_params = np.array(FP_params)
-    FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-    pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
-    
-    # logger.info("Generating corner plot...")
-    # generate_corner_plot()
+        #     # Sample the likelihood
+        #     chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
+        #     params_mean = sample_likelihood(
+        #         df=df_fitted,
+        #         FP_params=params,
+        #         smin=smin,
+        #         chain_output_filepath=chain_output_filepath
+        #         )
+        #     # Calculate difference between likelihood sampling and diff. evo. algorithm
+        #     params_diff = params - params_mean
+        #     logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
+        
+        # # Convert the FP parameters to dataframe and save to artifacts folder
+        # logger.info("Saving the derived FP fits to artifacts folder...")
+        # FP_params = np.array(FP_params)
+        # FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
+        # pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
+        
+        # logger.info("Generating corner plot...")
+        # generate_corner_plot()
 
-    # logger.info("Fitting the marginalized distributions with Gaussian...")
-    # fit_likelihood()
+        # logger.info("Fitting the marginalized distributions with Gaussian...")
+        # fit_likelihood()
 
-    # logger.info("Calculating the FP scatter...")
-    # calculate_fp_scatter()
+        logger.info("Calculating the FP scatter...")
+        calculate_fp_scatter()
 
-    # logger.info(f'Fitting the Fundamental Plane successful!')
-    # except Exception as e:
-    #     logger.error(f'Fitting the FP failed. Reason: {e}.')
+        logger.info(f'Fitting the Fundamental Plane successful!')
+    except Exception as e:
+        logger.error(f'Fitting the FP failed. Reason: {e}.')
 
 if __name__ == '__main__':
     main()

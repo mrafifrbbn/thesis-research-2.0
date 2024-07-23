@@ -34,7 +34,7 @@ HIGH_Z_OUTPUT_FILEPATH = {
 }
 create_parent_folder(HIGH_Z_OUTPUT_FILEPATH)
 
-LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/lamost_good_pv_list.csv')
+LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/combined/lamost_good_pv_list.ascii')
 
 # Selection criteria constants
 UPPER_Z_LIMIT = 16120.0 / LIGHTSPEED
@@ -87,10 +87,10 @@ def apply_selection() -> None:
 
         # 6. For LAMOST, select galaxies classified as ETG from John's visual inspections
         if survey == 'LAMOST':
-            good_pv_list = pd.read_csv(LAMOST_GOOD_PV_LIST_FILEPATH)[['col1']]
-            df_high_z = df_high_z.merge(good_pv_list, left_on='tmass', right_on='col1', how='inner').drop(['col1'], axis=1)
+            good_pv_list = pd.read_csv(LAMOST_GOOD_PV_LIST_FILEPATH)
+            df_high_z = df_high_z.merge(good_pv_list, on='tmass', how='inner')
             logger.info(f"Number of LAMOST galaxies after visual inspection = {len(df_high_z)} | Discarded galaxies = {old_count - len(df_high_z)}")
-            df_low_z = df_low_z.merge(good_pv_list, left_on='tmass', right_on='col1', how='inner').drop(['col1'], axis=1)
+            df_low_z = df_low_z.merge(good_pv_list, on='tmass', how='inner')
             
         # Save the remaining high-redshift galaxies
         logger.info(f"Final number of galaxies for {survey} = {len(df_high_z)}")

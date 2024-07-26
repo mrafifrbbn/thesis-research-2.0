@@ -39,6 +39,7 @@ OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTPUT_FILEPATH)
@@ -314,6 +315,22 @@ def combine_sdss_lamost() -> None:
 
     df.to_csv(OUTPUT_FILEPATH.get('SDSS_LAMOST'), index=False)
 
+def combine_6dfgs_sdss() -> None:
+    # Create empty dataframe
+    df = pd.DataFrame()
+    # Combine FP samples from SDSS and LAMOST into a single sample'
+    for survey in ['6dFGS', 'SDSS']:
+        filepath = OUTPUT_FILEPATH.get(survey)
+        data = pd.read_csv(filepath)
+        df = pd.concat([df, data])
+    # Drop duplicate measurements and keep the first (should be 6dFGS > SDSS > LAMOST)
+    count_ = len(df)
+    logger.info(f"Number of combined 6dFGS+SDSS galaxies = {count_}.")
+    df = df.drop_duplicates(subset='tmass')
+    logger.info(f"Number of unique 6dFGS+SDSS galaxies = {len(df)}. Galaxies dropped = {count_ - len(df)}.")
+
+    df.to_csv(OUTPUT_FILEPATH.get('6dFGS_SDSS'), index=False)
+
 def combine_all() -> None:
     # Create empty dataframe
     df = pd.DataFrame()
@@ -366,6 +383,10 @@ def main() -> None:
             logger.info("Combining SDSS+LAMOST galaxies into a single sample...")
             combine_sdss_lamost()
             logger.info("Combining SDSS+LAMOST galaxies into a single sample successful!")
+
+            logger.info("Combining 6dFGS+SDSS galaxies into a single sample...")
+            combine_6dfgs_sdss()
+            logger.info("Combining 6dFGS+SDSS galaxies into a single sample successful!")
             
             logger.info("Combining all galaxies into a single sample...")
             combine_all()

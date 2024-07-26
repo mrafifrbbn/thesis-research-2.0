@@ -35,6 +35,7 @@ HIGH_Z_OUTPUT_FILEPATH = {
 create_parent_folder(HIGH_Z_OUTPUT_FILEPATH)
 
 LAMOST_GOOD_PV_LIST_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/combined/lamost_good_pv_list.ascii')
+SDFGS_EXTRA_REJECTS_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/combined/extra_6dfgs_rejects.ascii')
 
 # Selection criteria constants
 UPPER_Z_LIMIT = 16120.0 / LIGHTSPEED
@@ -91,6 +92,13 @@ def apply_selection() -> None:
             df_high_z = df_high_z.merge(good_pv_list, on='tmass', how='inner')
             logger.info(f"Number of LAMOST galaxies after visual inspection = {len(df_high_z)} | Discarded galaxies = {old_count - len(df_high_z)}")
             df_low_z = df_low_z.merge(good_pv_list, on='tmass', how='inner')
+
+        # 7. For 6dFGS, reject the extra galaxies not excluded in previous papers
+        if survey == '6dFGS':
+            rejects_6df = pd.read_csv(SDFGS_EXTRA_REJECTS_FILEPATH)['tmass'].tolist()
+            df_high_z = df_high_z[~df_high_z['tmass'].isin(rejects_6df)]
+            logger.info(f"Number of 6dFGS galaxies after extra rejection by visual inspection = {len(df_high_z)} | Discarded galaxies = {old_count - len(df_high_z)}")
+            df_low_z = df_low_z[~df_low_z['tmass'].isin(rejects_6df)]
             
         # Save the remaining high-redshift galaxies
         logger.info(f"Final number of galaxies for {survey} = {len(df_high_z)}")

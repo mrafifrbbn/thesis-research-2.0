@@ -18,9 +18,8 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
-# FP_SETTING = int(os.environ.get('FP_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', '6dFGS_SDSS', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_logdist')
@@ -31,6 +30,7 @@ INPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/lamost.csv'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
@@ -41,6 +41,7 @@ LOGDIST_POSTERIOR_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/sdss_posterior.npy'),
     'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/lamost_posterior.npy'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost_posterior.npy'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss_posterior.npy'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/all_combined_posterior.npy')
 }
 create_parent_folder(LOGDIST_POSTERIOR_OUTPUT_FILEPATH)
@@ -50,6 +51,7 @@ LOGDIST_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/lamost.csv'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(LOGDIST_OUTPUT_FILEPATH)
@@ -59,6 +61,7 @@ CURVEFIT_COMPARISON_IMG_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss.png'),
     'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost.png'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost.png'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss.png'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined.png')
 }
 create_parent_folder(CURVEFIT_COMPARISON_IMG_FILEPATH)
@@ -68,6 +71,7 @@ POSTERIOR_SKEWNESS_IMG_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_skewness.png'),
     'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost_skewness.png'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost_skewness.png'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss_skewness.png'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined_skewness.png')
 }
 create_parent_folder(POSTERIOR_SKEWNESS_IMG_FILEPATH)

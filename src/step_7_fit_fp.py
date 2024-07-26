@@ -31,7 +31,7 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
 # Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', '6dFGS_SDSS', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')
@@ -41,6 +41,7 @@ INPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 
@@ -49,6 +50,7 @@ OUTLIER_REJECT_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss.csv'),
     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/lamost.csv'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/all_combined.csv')
 }
 create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
@@ -61,6 +63,7 @@ MCMC_CHAIN_OUTPUT_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
     'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_lamost_chain.npy'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_sdss_chain.npy'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/all_combined_chain.npy')
 }
 create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
@@ -73,6 +76,7 @@ LIKELIHOOD_DIST_IMG_FILEPATH = {
     'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
     'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png'),
     'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss_lamost.png'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_sdss.png'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/all_combined.png')
 }
 
@@ -377,62 +381,62 @@ def calculate_fp_scatter() -> None:
 
 def main() -> None:
     try:
-        # logger.info(f'{"=" * 50}')
-        # logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
-        # logger.info(f'Sample selection constants:')
-        # logger.info(f'OMEGA_M = {OMEGA_M}')
-        # logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
-        # logger.info(f'MAG_LOW = {MAG_LOW}')
-        # logger.info(f'MAG_HIGH = {MAG_HIGH}')
-        # logger.info(f'ZMIN = {ZMIN}')
-        # logger.info(f'ZMAX = {ZMAX}')
+        logger.info(f'{"=" * 50}')
+        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
+        logger.info(f'Sample selection constants:')
+        logger.info(f'OMEGA_M = {OMEGA_M}')
+        logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
+        logger.info(f'MAG_LOW = {MAG_LOW}')
+        logger.info(f'MAG_HIGH = {MAG_HIGH}')
+        logger.info(f'ZMIN = {ZMIN}')
+        logger.info(f'ZMAX = {ZMAX}')
 
-        # # Fit the FP for each survey and sample the likelihood
-        # FP_params = []
-        # for survey in NEW_SURVEY_LIST:
-        #     # Get input filepath
-        #     input_filepath = INPUT_FILEPATH[survey]
-        #     df = pd.read_csv(input_filepath)
+        # Fit the FP for each survey and sample the likelihood
+        FP_params = []
+        for survey in NEW_SURVEY_LIST:
+            # Get input filepath
+            input_filepath = INPUT_FILEPATH[survey]
+            df = pd.read_csv(input_filepath)
 
-        #     # Velocity dispersion lower limit
-        #     if SMIN_SETTING == 1:
-        #         smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
-        #     else:
-        #         smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
+            # Velocity dispersion lower limit
+            if SMIN_SETTING == 1:
+                smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING]['6dFGS']
+            else:
+                smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
-        #     # FP parameter boundaries to search the maximum over
-        #     param_boundaries = PARAM_BOUNDARIES
+            # FP parameter boundaries to search the maximum over
+            param_boundaries = PARAM_BOUNDARIES
 
-        #     params, df_fitted = fit_FP(
-        #         survey=survey,
-        #         df=df,
-        #         smin=smin,
-        #         param_boundaries=param_boundaries,
-        #         reject_outliers=True
-        #     )
-        #     FP_params.append(params)
+            params, df_fitted = fit_FP(
+                survey=survey,
+                df=df,
+                smin=smin,
+                param_boundaries=param_boundaries,
+                reject_outliers=True
+            )
+            FP_params.append(params)
 
-        #     # Save the cleaned sample
-        #     output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
-        #     df_fitted.to_csv(output_filepath, index=False)
+            # Save the cleaned sample
+            output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
+            df_fitted.to_csv(output_filepath, index=False)
 
-        #     # Sample the likelihood
-        #     chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
-        #     params_mean = sample_likelihood(
-        #         df=df_fitted,
-        #         FP_params=params,
-        #         smin=smin,
-        #         chain_output_filepath=chain_output_filepath
-        #         )
-        #     # Calculate difference between likelihood sampling and diff. evo. algorithm
-        #     params_diff = params - params_mean
-        #     logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
+            # Sample the likelihood
+            chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
+            params_mean = sample_likelihood(
+                df=df_fitted,
+                FP_params=params,
+                smin=smin,
+                chain_output_filepath=chain_output_filepath
+                )
+            # Calculate difference between likelihood sampling and diff. evo. algorithm
+            params_diff = params - params_mean
+            logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
         
-        # # Convert the FP parameters to dataframe and save to artifacts folder
-        # logger.info("Saving the derived FP fits to artifacts folder...")
-        # FP_params = np.array(FP_params)
-        # FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-        # pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
+        # Convert the FP parameters to dataframe and save to artifacts folder
+        logger.info("Saving the derived FP fits to artifacts folder...")
+        FP_params = np.array(FP_params)
+        FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
+        pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
         
         # logger.info("Generating corner plot...")
         # generate_corner_plot()

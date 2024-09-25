@@ -131,7 +131,7 @@ def derive_rsi() -> None:
         # Step 5: aperture size corrections for the velocity dispersions
         logger.info('Calculating aperture size-corrected velocity dispersions...')
         # Convert J-band radii to R-band radii
-        R_j = 10 ** (1.029 * np.log10(df['theta_j'] * np.sqrt(df['j_ba'])) + 0.140)
+        R_j = 10 ** (1.029 * np.log10(df['theta_j']) + 0.140)
         
         aperture_size = SPECTROSCOPY_CONFIG[survey]['aperture_size']
         veldisp_col = SPECTROSCOPY_CONFIG[survey]['veldisp_col_name']
@@ -168,7 +168,7 @@ def derive_rsi() -> None:
         dz_cluster = interpolate.splev(df["z_dist_est"].to_numpy(), dist_spline)
         ## Use the circularized effective radii
         for band in 'jhk':
-            circularized_radius = df[f'theta_{band}'] * np.sqrt(df[f'{band}_ba'])
+            circularized_radius = df[f'theta_{band}']
             df[f'r_{band}'] = np.log10(circularized_radius) + np.log10(dz_cluster) \
                             + np.log10(1000.0 * np.pi / (180.0 * 3600.0)) - np.log10(1.0 + df['zhelio'].to_numpy())
             

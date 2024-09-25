@@ -411,3 +411,10 @@ def calc_kcor(filter_name, redshift, colour_name, colour_value):
 		    kcor += c[x][y] * redshift**x * colour_value**y
 				
     return kcor
+
+def get_next_purchase_per_user(index_list):
+    index_list = list(index_list)
+    try:
+        return index_list[0].split('_')[-1]
+    except:
+        return 999

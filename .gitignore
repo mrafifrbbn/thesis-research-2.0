@@ -15,6 +15,11 @@ docs/~$*
 etc/
 etc/*
 
+*.npy
+*.csv
+*.ascii
+*.txt
+
 experiments.ipynb
 
 data/raw/2mass/*

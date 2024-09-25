@@ -99,9 +99,12 @@ def fit_FP(
     pvals_cut: float = PVALS_CUT,
     zmin: float = ZMIN,
     zmax: float = ZMAX,
+    solar_magnitude: float = SOLAR_MAGNITUDE.get('j'),
     mag_high: float = MAG_HIGH,
-    reject_outliers: bool = REJECT_OUTLIERS
-          ) -> np.ndarray:
+    mag_low: float = MAG_LOW,
+    reject_outliers: bool = REJECT_OUTLIERS,
+    use_full_fn: bool = True
+          ) -> Tuple[np.ndarray, pd.DataFrame]:
     
     logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane | Ngals = {len(df)} {'=' * 10}")
     
@@ -120,8 +123,8 @@ def fit_FP(
     # Calculate predicted true distance and FN integral limits
     red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
     d_H = sp.interpolate.splev(df['z_cosmo'].to_numpy(), dist_spline, der=0)
-    df['lmin'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_HIGH) / 5.0
-    df['lmax'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_LOW) / 5.0
+    df['lmin'] = (solar_magnitude + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
+    df['lmax'] = (solar_magnitude + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
 
     # Calculate predicted logdistance-ratios
     d_z = sp.interpolate.splev(df['z_dist_est'].to_numpy(), dist_spline, der=0)
@@ -166,7 +169,7 @@ def fit_FP(
 
         # Fit the FP parameters
         FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy()), maxiter=10000, tol=1.0e-6, workers=-1)
+            args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1, seed=42)
         # Calculate the chi-squared 
         chi_squared = Sn * FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r_true"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, chi_squared_only=True)[0]
         # Calculate the p-value (x,dof)
@@ -197,12 +200,13 @@ def fit_FP(
 def sample_likelihood(df: pd.DataFrame,
                       FP_params: np.ndarray, 
                       smin: float,
-                      chain_output_filepath: str = None
+                      chain_output_filepath: str = None,
+                      param_boundaries: List[Tuple] = PARAM_BOUNDARIES
                       ) -> np.ndarray:
     # The log-prior function for the FP parameters
     def log_prior(theta):
         a, b, rmean, smean, imean, sig1, sig2, sig3 = theta
-        a_bound, b_bound, rmean_bound, smean_bound, imean_bound, s1_bound, s2_bound, s3_bound = PARAM_BOUNDARIES
+        a_bound, b_bound, rmean_bound, smean_bound, imean_bound, s1_bound, s2_bound, s3_bound = param_boundaries
         if a_bound[0] < a < a_bound[1] and b_bound[0] < b < b_bound[1] and rmean_bound[0] < rmean < rmean_bound[1] and smean_bound[0] < smean < smean_bound[1] and imean_bound[0] < imean < imean_bound[1] and s1_bound[0] < sig1 < s1_bound[1] and s2_bound[0] < sig2 < s2_bound[1] and s3_bound[0] < sig3 < s3_bound[1]:
             return 0.0
         else:
@@ -234,17 +238,20 @@ def sample_likelihood(df: pd.DataFrame,
     nwalkers, ndim = pos.shape
 
     # Run the MCMC
+    logger.info("Running the MCMC sampler")
     sampler = emcee.EnsembleSampler(
         nwalkers, ndim, log_probability, args=(0.0, z, r, s, i, dr, ds, di, Sn, smin, lmin, lmax, C_m, True, False)
     )
     sampler.run_mcmc(pos, 5000, progress=True, skip_initial_state_check=True)
 
     # Flatten the chain and save as numpy array
+    logger.info("Flattening the chain and saving them as numpy array")
     flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
     if chain_output_filepath is not None:
         np.save(chain_output_filepath, flat_samples)
 
     # Get the mean values of the marginalized distribution
+    logger.info("Get the mean values of the marginalized distributions.")
     x_ = flat_samples.T
     FP_params_mean = np.mean(x_, axis=1)
 
@@ -407,6 +414,7 @@ def main() -> None:
             # FP parameter boundaries to search the maximum over
             param_boundaries = PARAM_BOUNDARIES
 
+            logger.info(f"Fitting the FP for {survey}.s")
             params, df_fitted = fit_FP(
                 survey=survey,
                 df=df,
@@ -414,6 +422,7 @@ def main() -> None:
                 param_boundaries=param_boundaries,
                 reject_outliers=True
             )
+            logger.info(f"Final FP for {survey}: {params}")
             FP_params.append(params)
 
             # Save the cleaned sample
@@ -421,6 +430,7 @@ def main() -> None:
             df_fitted.to_csv(output_filepath, index=False)
 
             # Sample the likelihood
+            logger.info(f"Sampling the FP likelihood for {survey}.")
             chain_output_filepath = MCMC_CHAIN_OUTPUT_FILEPATH[survey]
             params_mean = sample_likelihood(
                 df=df_fitted,

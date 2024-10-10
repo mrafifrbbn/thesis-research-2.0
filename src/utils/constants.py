@@ -136,6 +136,11 @@ SURVEY_FP_SETTING = {
     }
 }
 
+# Constants when fitting the FP
+PVALS_CUT = 0.01
+REJECT_OUTLIERS = True
+PARAM_BOUNDARIES = [(1.2, 1.6), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
+
 # Function to create parent folder, given a full absolute path as dictionary or string
 def create_parent_folder(full_abspath) -> None:
     if isinstance(full_abspath, dict):

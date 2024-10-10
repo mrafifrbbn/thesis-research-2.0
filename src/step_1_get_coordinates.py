@@ -5,6 +5,8 @@ from astropy.io import fits
 from astropy.table import Table
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
+from filepaths import *
+
 load_dotenv(override=True)
 
 # Environment variable
@@ -14,14 +16,14 @@ ROOT_PATH = os.environ.get('ROOT_PATH')
 logger = get_logger('get_eq_coords')
 
 # Input file paths
-SDFGS_INPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/6dfgs/sdfgs_fp_vizier.fits')
-SDSS_INPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/sdss/sdss_howlett2022.dat')
-LAMOST_INPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/lamost/lamost_DR7_VDcat_20200825.fits')
+SDFGS_INPUT_FILEPATH = SPECTROSCOPY_RAW_FILEPATHS['6dFGS']
+SDSS_INPUT_FILEPATH = SPECTROSCOPY_RAW_FILEPATHS['SDSS']
+LAMOST_INPUT_FILEPATH = SPECTROSCOPY_RAW_FILEPATHS['LAMOST']
 
 # Output file paths
-SDFGS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/6dfgs.ascii')
-SDSS_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/sdss.ascii')
-LAMOST_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/lamost.ascii')
+SDFGS_OUTPUT_FILEPATH = SKY_COORDS_FILEPATHS['6dFGS']
+SDSS_OUTPUT_FILEPATH = SKY_COORDS_FILEPATHS['SDSS']
+LAMOST_OUTPUT_FILEPATH = SKY_COORDS_FILEPATHS['LAMOST']
 
 def get_eq_coords() -> None:
     '''

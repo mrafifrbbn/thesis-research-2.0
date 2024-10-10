@@ -16,77 +16,51 @@ from utils.constants import *
 from utils.CosmoFunc import *
 from utils.logging_config import get_logger
 
-pvhub_dir = '/Users/mrafifrbbn/Documents/thesis/pvhub/'
+from filepaths import *
+
+pvhub_dir = os.environ.get('PVHUB_DIR_PATH')
 if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
 from pvhub import * # type: ignore
 
 import emcee
 import getdist
-from getdist import plots, MCSamples
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+# Get environment variables from .env file
 ROOT_PATH = os.environ.get('ROOT_PATH')
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 COMPLETENESS_SETTING = int(os.environ.get('COMPLETENESS_SETTING'))
+FP_FIT_METHOD = int(os.environ.get('FP_FIT_METHOD'))
+
+# Create boolean from FP_FIT_METHOD value
+USE_FULL_FN = True if FP_FIT_METHOD == 0 else False
+
 # Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['SDSS_LAMOST', '6dFGS_SDSS', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = SURVEY_LIST #(SURVEY_LIST + ['SDSS_LAMOST', '6dFGS_SDSS', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')
 
-INPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/lamost.csv'),
-    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
-    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/all_combined.csv')
-}
+INPUT_FILEPATH = FOUNDATION_ZONE_FP_SAMPLE_FILEPATHS
 
-OUTLIER_REJECT_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/lamost.csv'),
-    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/sdss_lamost.csv'),
-    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/6dfgs_sdss.csv'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/all_combined.csv')
-}
+OUTLIER_REJECT_OUTPUT_FILEPATH = OUTLIER_REJECT_FP_SAMPLE_FILEPATHS
 create_parent_folder(OUTLIER_REJECT_OUTPUT_FILEPATH)
 
-FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fits.csv')
-create_parent_folder(FP_FIT_FILEPATH)
+FP_FIT_OUTPUT_FILEPATH = FP_FIT_FILEPATH
+create_parent_folder(FP_FIT_OUTPUT_FILEPATH)
 
-MCMC_CHAIN_OUTPUT_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_chain.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/lamost_chain.npy'),
-    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/sdss_lamost_chain.npy'),
-    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_sdss_chain.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/all_combined_chain.npy')
-}
+MCMC_CHAIN_OUTPUT_FILEPATH = MCMC_CHAIN_FILEPATHS
 create_parent_folder(MCMC_CHAIN_OUTPUT_FILEPATH)
 
-LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/three_surveys_likelihood.png')
+LIKELIHOOD_CORNERPLOT_IMG_FILEPATH = FP_FIT_LIKELIHOOD_CORNERPLOT_FILEPATH
 create_parent_folder(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH)
 
-LIKELIHOOD_DIST_IMG_FILEPATH = {
-    '6dFGS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs.png'),
-    'SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss.png'),
-    'LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/lamost.png'),
-    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/sdss_lamost.png'),
-    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/6dfgs_sdss.png'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/all_combined.png')
-}
+LIKELIHOOD_DIST_IMG_FILEPATH = FP_FIT_LIKELIHOOD_DISTRIBUTION_FILEPATHS
 
-FP_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_scatter.csv')
+FP_SCATTER_FILEPATH = FP_FIT_TYPICAL_SCATTER_FILEPATH
 create_parent_folder(FP_SCATTER_FILEPATH)
-
-# User-defined variables
-PVALS_CUT = 0.01
-REJECT_OUTLIERS = True
-PARAM_BOUNDARIES = [(1.2, 1.6), (-0.9, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.2, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
 
 # Set global random seed
 np.random.seed(42)
@@ -107,9 +81,6 @@ def fit_FP(
           ) -> Tuple[np.ndarray, pd.DataFrame]:
     
     logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane | Ngals = {len(df)} {'=' * 10}")
-    
-    # Re-apply the magnitude limit
-    df = df[(df['j_m_ext'] - df['extinction_j']) <= mag_high]#.loc[:10, :]
 
     # Load peculiar velocity model
     logger.info("Calculating predicted l.o.s. peculiar velocity from model")
@@ -131,8 +102,8 @@ def fit_FP(
     df['logdist_pred'] = np.log10(d_z / d_H)
     df['r_true'] = df['r'] - df['logdist_pred']
 
-    # Use Sn (default is not)
-    if False: # Replace this with a variable in the future
+    # If using partial f_n, calculate Sn using the VMAX method
+    if not USE_FULL_FN:
         # Get some redshift-distance lookup tables
         red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
         # The comoving distance to each galaxy using group redshift as distance indicator
@@ -147,6 +118,7 @@ def fit_FP(
         zlim = sp.interpolate.splev(Dlim, lumred_spline)
         Sn = np.where(zlim >= zmax, 1.0, np.where(zlim <= zmin, 0.0, (Dlim**3 - Vmin)/(Vmax - Vmin)))
         df['Sn'] = Sn
+    # If using full f_n, set Sn=1 for all galaxies
     else:
         Sn = 1.0
         df['Sn'] = Sn
@@ -154,7 +126,6 @@ def fit_FP(
     # Fitting the FP iteratively by rejecting galaxies with high chi-square (low p-values) in each iteration
     data_fit = df
     badcount = len(df)
-    # logger.info(len(data_fit), badcount)
     is_converged = False
     i = 1
     
@@ -172,12 +143,16 @@ def fit_FP(
             args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1, seed=42)
         # Calculate the chi-squared 
         chi_squared = Sn * FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r_true"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, chi_squared_only=True)[0]
+        
         # Calculate the p-value (x,dof)
         pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
+        
         # Reject galaxies with p-values < pvals_cut (probabilities of being part of the sample lower than some threshold)
         data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
+        
         # Count the number of rejected galaxies
         badcountnew = len(np.where(pvals < pvals_cut)[0])
+        
         # Converged if the number of rejected galaxies in this iteration is the same as previous iteration
         is_converged = True if badcount == badcountnew else False
 
@@ -213,12 +188,12 @@ def sample_likelihood(df: pd.DataFrame,
             return -np.inf
 
     # Calculate log-posterior distribution
-    def log_probability(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals=True, chi_squared_only=False):
+    def log_probability(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals=True, chi_squared_only=False, use_full_fn=True):
         lp = log_prior(theta)
         if not np.isfinite(lp):
             return -np.inf
         else:
-            return lp - FP_func(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals, chi_squared_only)
+            return lp - FP_func(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals, chi_squared_only, use_full_fn)
     
     # Load the observables needed to sample the likelihood
     z = df['z_cmb'].to_numpy()
@@ -240,7 +215,7 @@ def sample_likelihood(df: pd.DataFrame,
     # Run the MCMC
     logger.info("Running the MCMC sampler")
     sampler = emcee.EnsembleSampler(
-        nwalkers, ndim, log_probability, args=(0.0, z, r, s, i, dr, ds, di, Sn, smin, lmin, lmax, C_m, True, False)
+        nwalkers, ndim, log_probability, args=(0.0, z, r, s, i, dr, ds, di, Sn, smin, lmin, lmax, C_m, True, False, USE_FULL_FN)
     )
     sampler.run_mcmc(pos, 5000, progress=True, skip_initial_state_check=True)
 
@@ -263,17 +238,17 @@ def generate_corner_plot() -> None:
 
     # 6dFGS data (mocks and previous values)
     samples_6df = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['6dFGS'])
-    prev_vals_6df = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['6dFGS'].to_numpy()
+    prev_vals_6df = pd.read_csv(FP_FIT_OUTPUT_FILEPATH, index_col=0).loc['6dFGS'].to_numpy()
     logger.info(f"Best fit values for 6dFGS: {prev_vals_6df}")
 
     # SDSS data (mocks and previous values)
     samples_sdss = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['SDSS'])
-    prev_vals_sdss = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['SDSS'].to_numpy()
+    prev_vals_sdss = pd.read_csv(FP_FIT_OUTPUT_FILEPATH, index_col=0).loc['SDSS'].to_numpy()
     logger.info(f"Best fit values for SDSS: {prev_vals_sdss}")
 
     # LAMOST data (mocks and previous values)
     samples_lamost = np.load(MCMC_CHAIN_OUTPUT_FILEPATH['LAMOST'])
-    prev_vals_lamost = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc['LAMOST'].to_numpy()
+    prev_vals_lamost = pd.read_csv(FP_FIT_OUTPUT_FILEPATH, index_col=0).loc['LAMOST'].to_numpy()
     logger.info(f"Best fit values for LAMOST: {prev_vals_lamost}")
 
     # parameter names
@@ -356,7 +331,7 @@ def calculate_fp_scatter() -> None:
     results = []
     for survey in NEW_SURVEY_LIST:
         df = pd.read_csv(OUTLIER_REJECT_OUTPUT_FILEPATH[survey])
-        params = pd.read_csv(FP_FIT_FILEPATH, index_col=0).loc[survey].to_dict()
+        params = pd.read_csv(FP_FIT_OUTPUT_FILEPATH, index_col=0).loc[survey].to_dict()
         a = params.get("a")
         b = params.get("b")
         sigma_1 = params.get("s1")
@@ -389,7 +364,7 @@ def calculate_fp_scatter() -> None:
 def main() -> None:
     try:
         logger.info(f'{"=" * 50}')
-        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}...')
+        logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}... | Fitting method = {FP_FIT_METHOD}')
         logger.info(f'Sample selection constants:')
         logger.info(f'OMEGA_M = {OMEGA_M}')
         logger.info(f'smin = {SURVEY_VELDISP_LIMIT}')
@@ -414,13 +389,14 @@ def main() -> None:
             # FP parameter boundaries to search the maximum over
             param_boundaries = PARAM_BOUNDARIES
 
-            logger.info(f"Fitting the FP for {survey}.s")
+            logger.info(f"Fitting the FP for {survey}.")
             params, df_fitted = fit_FP(
                 survey=survey,
                 df=df,
                 smin=smin,
                 param_boundaries=param_boundaries,
-                reject_outliers=True
+                reject_outliers=True,
+                use_full_fn=USE_FULL_FN
             )
             logger.info(f"Final FP for {survey}: {params}")
             FP_params.append(params)
@@ -446,7 +422,7 @@ def main() -> None:
         logger.info("Saving the derived FP fits to artifacts folder...")
         FP_params = np.array(FP_params)
         FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-        pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_FILEPATH)
+        pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_OUTPUT_FILEPATH)
         
         # logger.info("Generating corner plot...")
         # generate_corner_plot()

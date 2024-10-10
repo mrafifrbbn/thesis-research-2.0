@@ -8,6 +8,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
+
 load_dotenv(override=True)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')

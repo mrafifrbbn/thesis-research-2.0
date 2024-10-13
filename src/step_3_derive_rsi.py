@@ -13,6 +13,7 @@ from dustmaps.sfd import SFDQuery
 from dustmaps.config import config
 config['data_dir'] = os.path.join(ROOT_PATH, 'etc/dustmaps')
 
+from filepaths import *
 from utils.constants import *
 from utils.logging_config import get_logger
 from utils.helio_cmb import perform_corr
@@ -48,17 +49,9 @@ SPECTROSCOPY_CONFIG = {
 }
 
 # File paths
-SPECTROPHOTO_FILEPATHS = {
-    '6dFGS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
-}
+SPECTROPHOTO_FILEPATHS = SPECTROPHOTO_FILEPATHS
 
-OUTPUT_FILEPATHS = {
-    '6dFGS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/lamost.csv')
-}
+OUTPUT_FILEPATHS = RSI_DERIVED_FILEPATHS
 
 def derive_rsi() -> None:
     '''

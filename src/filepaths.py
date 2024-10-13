@@ -22,6 +22,30 @@ SKY_COORDS_FILEPATHS = {
     'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/sky_coord/lamost.ascii')
 }
 
+# Filepaths for the combined 2MASS photometry + spectroscopy (redshift and veldisp)
+SPECTROPHOTO_FILEPATHS = {
+    '6dFGS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/preprocessed/spectrophoto/lamost.csv')
+}
+
+# Filepaths containing the calculated FP observables (r, s, i) for each survey
+RSI_DERIVED_FILEPATHS = {
+    '6dFGS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/processed/rsi_derived/lamost.csv')
+}
+
+# Photometric error parameters
+PHOT_ERROR_MODEL_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/phot_error/smin_setting_{SMIN_SETTING}/model.csv')
+
+# Selection function-selected galaxies
+ZMS_SELECTED_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/processed/zms_cut/smin_setting_{SMIN_SETTING}/lamost.csv')
+}
+
 # Foundation zone FP sample filepaths
 FOUNDATION_ZONE_FP_SAMPLE_FILEPATHS = {
     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample/smin_setting_{SMIN_SETTING}/6dfgs.csv'),
@@ -70,3 +94,22 @@ FP_FIT_LIKELIHOOD_DISTRIBUTION_FILEPATHS = {
 
 # FP fits typical scatter calculation results filepath
 FP_FIT_TYPICAL_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/fp_scatter.csv')
+
+# Where the extinction files to generate the mocks are stored
+EXTINCTION_DATA_FILEPATHS = {
+    '6dFGS': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/lamost.csv')
+}
+
+# JSON file to store the configs to generate the mocks
+MOCK_CONFIG_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/mock_fits/mock_config.json')
+
+# Templated GENRMOCKFP C++ file path
+GENRMOCKFP_TEMPLATE_FILEPATH = os.path.join(ROOT_PATH, 'src/mocks/GENRMOCKFP/genr_mocks_fp.cpp.template')
+
+# Rendered GENRMOCKFP C++ file path
+GENRMOCKFP_CPP_FILEPATH = os.path.join(ROOT_PATH, 'src/mocks/GENRMOCKFP/genr_mocks_fp.cpp')
+
+# Parent folder where all the mock data are saved
+MOCK_DATA_FILEPATH = os.path.join(ROOT_PATH, 'data/mocks/mock_galaxies')

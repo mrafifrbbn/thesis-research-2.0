@@ -146,11 +146,11 @@ def generate_genrmockfp_file(
 def main():
 
     configs_list = []
-    for survey in SURVEY_LIST:
+    for survey in SURVEY_LIST + ["SDSS_LAMOST", "ALL_COMBINED"]:
         
         # Step 1: generate extinction data
         generate_extinction_data(
-            input_filepath=ZMS_SELECTED_FILEPATH[survey],
+            input_filepath=FOUNDATION_ZONE_FP_SAMPLE_FILEPATHS[survey],
             output_filepath=EXTINCTION_DATA_FILEPATHS[survey]
         )
 

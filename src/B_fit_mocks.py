@@ -30,7 +30,7 @@ parser.add_argument(
     "--id-start", help="Mock ID to start fitting over.", type=int, default=1
 )
 parser.add_argument(
-    "--id-end", help="Mock ID to end fitting over.", type=int, default=500
+    "--id-end", help="Mock ID to end fitting over.", type=int, default=1000
 )
 parser.add_argument(
     "--fresh-start", help="Deletes the output file (if exists) if called", action="store_true"
@@ -70,17 +70,6 @@ def fit_mock(
     # Set veldisp lower limit
     smin = SURVEY_VELDISP_LIMIT[smin_setting][survey]
 
-    # Deletes file if fresh_start is called
-    if args.fresh_start:
-        if os.path.exists(output_filepath):
-            os.remove(output_filepath)
-
-    # Create output file for mock fits if not exist (otherwise append to last line)
-    if not os.path.exists(output_filepath.parent):
-        os.makedirs(output_filepath.parent)
-    with open(output_filepath, "w") as fp:
-        fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
-
     # Load the mock galaxies data
     mock = pd.read_csv(mock_filename, delim_whitespace=True)
 
@@ -118,7 +107,11 @@ def fit_mock(
         Snfit = data_fit["Sn"].to_numpy()
 
         # The range of the FP parameters' values
-        param_boundaries = PARAM_BOUNDARIES
+        if fp_fit_method == 0:
+            param_boundaries = PARAM_BOUNDARIES
+        else:
+            param_boundaries = [(1.2, 1.8), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.20, 0.45), (0.1, 0.25)]
+
         avals, bvals = param_boundaries[0], param_boundaries[1]
         rvals, svals, ivals = param_boundaries[2], param_boundaries[3], param_boundaries[4]
         s1vals, s2vals, s3vals = param_boundaries[5], param_boundaries[6], param_boundaries[7]
@@ -147,22 +140,48 @@ def main():
 
     for filename in mock_filenames:
         # Parse the filename to retrieve settings
-        survey = filename.split('_')[0]
-        survey = '6dFGS' if '6dfgs' in survey else survey.upper()
+        survey = re.search(r"(.*)_mocks", filename).group(1)
+
+        if survey.lower() == '6dfgs':
+            survey = '6dFGS'
+        else:
+            survey = survey.upper()
+
         smin_setting = int(re.search(r"smin_(\d+)", filename).group(1))
         fp_fit_method = int(re.search(r"fp_fit_method_(\d+)", filename).group(1))
 
         # Generate output file path string
-        output_filepath = os.path.join(ROOT_PATH, f"artifacts/mock_fits/smin_setting_{smin_setting}/fp_fit_method_{fp_fit_method}/{survey.lower()}.csv")
+        output_filepath = Path(os.path.join(ROOT_PATH, f"artifacts/mock_fits/smin_setting_{smin_setting}/fp_fit_method_{fp_fit_method}/{survey.lower()}.csv"))
+
+        # Create parent directory for the mock fits
+        if not os.path.exists(output_filepath.parent):
+            os.makedirs(output_filepath.parent)
+
+        # Deletes file if fresh_start is called
+        if args.fresh_start:
+            if os.path.exists(output_filepath):
+                os.remove(output_filepath)
+            with open(output_filepath, "w") as fp:
+                fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
+            last_id = 1
+        else:
+            # Create file if not exist
+            if not os.path.exists(output_filepath):
+                with open(output_filepath, "w") as fp:
+                    fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
+                    last_id = 1
+            # Else, fetch the latest mock ID
+            else:
+                last_id = int(pd.read_csv(output_filepath)['mock_id'].max()) + 1
 
         fit_mock(
             mock_filename=os.path.join(MOCK_DATA_FILEPATH, filename),
             survey=survey,
-            fp_fit_method=fp_fit_method,
+            fp_fit_method=0,
             smin_setting=smin_setting,
-            id_start=ID_START,
+            id_start=last_id,
             id_end=ID_END,
-            output_filepath=Path(output_filepath),
+            output_filepath=output_filepath,
         )
 
 

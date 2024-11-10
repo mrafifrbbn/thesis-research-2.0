@@ -33,7 +33,7 @@ parser.add_argument(
     "--id-end", help="Mock ID to end fitting over.", type=int, default=1000
 )
 parser.add_argument(
-    "--fresh-start", help="Deletes the output file (if exists) if called", action="store_true"
+    "--fresh-start", help="Deletes the output file (if exists) if called.", action="store_true"
 )
 
 # Start and end ID of the mock (change if something fails midway)
@@ -49,6 +49,8 @@ def fit_mock(
         id_start: int,
         id_end: int,
         output_filepath: str,
+        reject_outliers: bool = False,
+        pvals_cut: float = 0.01
         ):
     """_summary_
 
@@ -101,12 +103,7 @@ def fit_mock(
         df['Sn'] = Sn
         df['C_m'] = 1.0
 
-        # Fitting the FP once (not iteratively)
-        data_fit = df
-
-        Snfit = data_fit["Sn"].to_numpy()
-
-        # The range of the FP parameters' values
+        # Range of FP parameters
         if fp_fit_method == 0:
             param_boundaries = PARAM_BOUNDARIES
         else:
@@ -116,9 +113,45 @@ def fit_mock(
         rvals, svals, ivals = param_boundaries[2], param_boundaries[3], param_boundaries[4]
         s1vals, s2vals, s3vals = param_boundaries[5], param_boundaries[6], param_boundaries[7]
 
-        # Fit the FP parameters
-        FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
-            args=(0.0, data_fit["z"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["dr"].to_numpy(), data_fit["ds"].to_numpy(), data_fit["di"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1)
+        # Fitting the FP iteratively
+        data_fit = df
+        badcount = len(df)
+        is_converged = False
+        i = 1
+        while not is_converged:
+
+            Snfit = data_fit["Sn"].to_numpy()
+
+            # Fit the FP parameters
+            FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
+                args=(0.0, data_fit["z"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["dr"].to_numpy(), data_fit["ds"].to_numpy(), data_fit["di"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1)
+
+            # Break from the loop if not iterative
+            if reject_outliers == True:
+                break
+
+            # Calculate the chi-squared 
+            chi_squared = Sn * FP_func(FPparams.x, 0.0, data_fit["z"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["dr"].to_numpy(), data_fit["ds"].to_numpy(), data_fit["di"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), sumgals=False, chi_squared_only=True, use_full_fn=use_full_fn)[0]
+            
+            # Calculate the p-value (x,dof)
+            pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(data_fit) - 8.0))
+            
+            # Reject galaxies with p-values < pvals_cut (probabilities of being part of the sample lower than some threshold)
+            data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
+            
+            # Count the number of rejected galaxies
+            badcountnew = len(np.where(pvals < pvals_cut)[0])
+            
+            # Converged if the number of rejected galaxies in this iteration is the same as previous iteration
+            is_converged = True if badcount == badcountnew else False
+            
+            # Set the new count of rejected galaxies
+            badcount = badcountnew
+            i += 1
+            
+            # Break from the loop if reject_outliers is set to false
+            if reject_outliers == False:
+                break
 
         # logger.info verbose
         print(f"{'-' * 10} Mock {mock_id} {'-' * 10} | FP parameters: {FPparams.x.tolist()}")
@@ -177,11 +210,12 @@ def main():
         fit_mock(
             mock_filename=os.path.join(MOCK_DATA_FILEPATH, filename),
             survey=survey,
-            fp_fit_method=0,
+            fp_fit_method=fp_fit_method,
             smin_setting=smin_setting,
             id_start=last_id,
             id_end=ID_END,
             output_filepath=output_filepath,
+            reject_outliers=True
         )
 
 

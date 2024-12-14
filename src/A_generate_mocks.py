@@ -18,6 +18,9 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
 from src.filepaths import *
 from src.utils.constants import *
+from src.utils.logging_config import get_logger
+
+logger = get_logger("generate_mocks")
 
 
 def generate_extinction_data(input_filepath: str, output_filepath: str):
@@ -146,7 +149,7 @@ def generate_genrmockfp_file(
 def main():
 
     configs_list = []
-    for survey in SURVEY_LIST + ["SDSS_LAMOST", "ALL_COMBINED"]:
+    for survey in SURVEY_LIST + ["ALL_COMBINED"]:
         
         # Step 1: generate extinction data
         generate_extinction_data(
@@ -179,6 +182,7 @@ def main():
     # Step 3: generate the mocks for every config
     for config in configs_list:
         # Generate the genrmockfp_cpp rendered file
+        logger.info(f"Generating 1000 mocks @ {config['NGALS_MOCKS']} galaxies for {config['SURVEY']} with FP obtained from method {config['FP_FIT_METHOD']}")
         generate_genrmockfp_file(GENRMOCKFP_TEMPLATE_FILEPATH, GENRMOCKFP_CPP_FILEPATH, config)
 
         # Run the simulations

@@ -11,12 +11,18 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from typing import List, Dict, Tuple
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
-from utils.constants import *
-from utils.CosmoFunc import *
-from utils.logging_config import get_logger
+root_dir = os.environ.get("ROOT_PATH")
+if not root_dir in sys.path: sys.path.append(root_dir)
 
-from filepaths import *
+from src.utils.constants import *
+from src.utils.CosmoFunc import *
+from src.utils.functions import create_parent_folder
+from src.utils.logging_config import get_logger
+
+from src.filepaths import *
 
 pvhub_dir = os.environ.get('PVHUB_DIR_PATH')
 if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
@@ -24,9 +30,6 @@ from pvhub import * # type: ignore
 
 import emcee
 import getdist
-
-from dotenv import load_dotenv
-load_dotenv(override=True)
 
 # Get environment variables from .env file
 ROOT_PATH = os.environ.get('ROOT_PATH')
@@ -38,7 +41,7 @@ FP_FIT_METHOD = int(os.environ.get('FP_FIT_METHOD'))
 USE_FULL_FN = True if FP_FIT_METHOD == 0 else False
 
 # Add new data combinations here
-NEW_SURVEY_LIST = SURVEY_LIST #(SURVEY_LIST + ['SDSS_LAMOST', '6dFGS_SDSS', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
+NEW_SURVEY_LIST = SURVEY_LIST + ['ALL_COMBINED'] if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create logging instance
 logger = get_logger('fit_fp')
@@ -141,6 +144,11 @@ def fit_FP(
         # Fit the FP parameters
         FPparams = sp.optimize.differential_evolution(FP_func, bounds=(avals, bvals, rvals, svals, ivals, s1vals, s2vals, s3vals), 
             args=(0.0, data_fit["z_cmb"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["er"].to_numpy(), data_fit["es"].to_numpy(), data_fit["ei"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1, seed=42)
+        
+        # Break from the loop if reject_outliers is set to false
+        if reject_outliers == False:
+            break
+        
         # Calculate the chi-squared 
         chi_squared = Sn * FP_func(FPparams.x, 0.0, df["z_cmb"].to_numpy(), df["r_true"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), Sn, smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, chi_squared_only=True)[0]
         
@@ -162,10 +170,6 @@ def fit_FP(
         # Set the new count of rejected galaxies
         badcount = badcountnew
         i += 1
-        
-        # Break from the loop if reject_outliers is set to false
-        if reject_outliers == False:
-            break
 
     df = data_fit
     logger.info(f'Number of galaxies remaining: {len(df)}')
@@ -281,52 +285,6 @@ def generate_corner_plot() -> None:
 
     g.export(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH, dpi=300)
 
-# def fit_likelihood() -> None:
-#     def fit_and_plot(posteriors, fp_paramname, fp_labelname, axis):
-#         def gaus(x, mu, sig):
-#             return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
-        
-#         xdata = posteriors[fp_paramname]
-#         y, x_edges = np.histogram(xdata, bins=N, density=True)
-#         x = (x_edges[1:] + x_edges[:-1])/2
-#         popt, pcov = curve_fit(gaus, x, y, p0=[np.mean(xdata), np.std(xdata)])
-#         popt[1] = np.absolute(popt[1])
-        
-#         axis.hist(xdata, bins=N, density=True, alpha=0.5)
-#         axis.plot(x, norm.pdf(x, loc=popt[0], scale=popt[1]), color='black')
-#         axis.set_xlabel(fp_labelname, fontsize=15)
-#         axis.set_title(r'%.4f' % popt[0] + ' $\pm$ %.4f' % popt[1])
-#         logger.info(f"{'=' * 20} {fp_paramname} {'=' * 20}")
-#         logger.info(f'Mean of {fp_paramname} = {round(popt[0], 4)}')
-#         logger.info(f'Std of {fp_paramname} = {round(popt[1], 4)}')
-#         fig.tight_layout(pad=1.0)
-    
-#     N = 50
-#     for survey in NEW_SURVEY_LIST:
-#         logger.info(f"Fitting the FP likelihood of {survey}")
-#         post_dist = np.load(MCMC_CHAIN_OUTPUT_FILEPATH[survey]).T
-#         posteriors = {
-#             'a': post_dist[0],
-#             'b': post_dist[1],
-#             'rmean': post_dist[2],
-#             'smean': post_dist[3],
-#             'imean': post_dist[4],
-#             'sigma1': post_dist[5],
-#             'sigma2': post_dist[6],
-#             'sigma3': post_dist[7]
-#         }
-        
-#         fp_paramname_list = ['a', 'b', 'rmean', 'smean', 'imean', 'sigma1', 'sigma2', 'sigma3']
-#         fp_labelname_list = [r'$a$', r'$b$', r'$\bar{r}$', r'$\bar{s}$', r'$\bar{\imath}$', r'$\sigma_1$', r'$\sigma_2$', r'$\sigma_3$']
-        
-#         fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(GOLDEN_RATIO * 8, 8))
-#         fig.delaxes(fig.axes[2])
-        
-#         for idx, ax in enumerate(fig.axes):
-#             fit_and_plot(posteriors, fp_paramname_list[idx], fp_labelname_list[idx], ax)
-#         fig.savefig(LIKELIHOOD_DIST_IMG_FILEPATH[survey])
-#         logger.info('\n')
-
 def calculate_fp_scatter() -> None:
     results = []
     for survey in NEW_SURVEY_LIST:
@@ -361,7 +319,7 @@ def calculate_fp_scatter() -> None:
     df = pd.DataFrame(results, index=NEW_SURVEY_LIST).round(decimals=4)
     df.to_csv(FP_SCATTER_FILEPATH, index=True)
 
-def main() -> None:
+def main():
     try:
         logger.info(f'{"=" * 50}')
         logger.info(f'Fitting the Fundamental Plane using SMIN_SETTING = {SMIN_SETTING} | COMPLETENESS_SETTING = {COMPLETENESS_SETTING}... | Fitting method = {FP_FIT_METHOD}')
@@ -387,7 +345,8 @@ def main() -> None:
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
             # FP parameter boundaries to search the maximum over
-            param_boundaries = PARAM_BOUNDARIES
+            # param_boundaries = PARAM_BOUNDARIES
+            param_boundaries = [(1.4, 2.5), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.20, 0.45), (0.1, 0.25)]
 
             logger.info(f"Fitting the FP for {survey}.")
             params, df_fitted = fit_FP(
@@ -396,7 +355,8 @@ def main() -> None:
                 smin=smin,
                 param_boundaries=param_boundaries,
                 reject_outliers=True,
-                use_full_fn=USE_FULL_FN
+                use_full_fn=USE_FULL_FN,
+                pvals_cut=PVALS_CUT
             )
             logger.info(f"Final FP for {survey}: {params}")
             FP_params.append(params)
@@ -412,7 +372,8 @@ def main() -> None:
                 df=df_fitted,
                 FP_params=params,
                 smin=smin,
-                chain_output_filepath=chain_output_filepath
+                chain_output_filepath=chain_output_filepath,
+                param_boundaries=param_boundaries
                 )
             # Calculate difference between likelihood sampling and diff. evo. algorithm
             params_diff = params - params_mean
@@ -423,12 +384,6 @@ def main() -> None:
         FP_params = np.array(FP_params)
         FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
         pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_OUTPUT_FILEPATH)
-        
-        # logger.info("Generating corner plot...")
-        # generate_corner_plot()
-
-        # logger.info("Fitting the marginalized distributions with Gaussian...")
-        # fit_likelihood()
 
         logger.info("Calculating the FP scatter...")
         calculate_fp_scatter()

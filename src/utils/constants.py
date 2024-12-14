@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -94,7 +93,10 @@ SURVEY_VELDISP_LIMIT = {
     1: {
         '6dFGS': np.log10(112) - off_6df,
         'SDSS': np.log10(112) - off_6df,
-        'LAMOST': np.log10(112) - off_6df
+        'LAMOST': np.log10(112) - off_6df,
+        '6dFGS_SDSS': np.log10(112) - off_6df,
+        'SDSS_LAMOST': np.log10(112) - off_6df,
+        'ALL_COMBINED': np.log10(112) - off_6df
     },
     # Second setting: use 6dFGS veldisp + offset for 6dFGS and SDSS and LAMOST veldisp + offset for LAMOST
     2: {
@@ -137,31 +139,13 @@ SURVEY_FP_SETTING = {
 }
 
 # Constants when fitting the FP
-PVALS_CUT = 0.01
+PVALS_CUT = 0.001
 REJECT_OUTLIERS = True
 PARAM_BOUNDARIES = [(1.2, 1.6), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
 
-# Function to create parent folder, given a full absolute path as dictionary or string
-def create_parent_folder(full_abspath) -> None:
-    if isinstance(full_abspath, dict):
-        for filepath in full_abspath.values():
-            output_filepath = Path(filepath)
-            output_filepath.parent.mkdir(parents=True, exist_ok=True)
-    elif isinstance(full_abspath, str):
-        output_filepath = Path(full_abspath)
-        output_filepath.parent.mkdir(parents=True, exist_ok=True)
-
-# Linear + parabola for magnitude count
-def completeness_linear_parabola(x, beta, x0, b, alpha=0.6):
-    a = (alpha - b) / (2 * x0)
-    y_pred = np.piecewise(
-        x,
-        [x <= x0, x > x0],
-        [lambda x: alpha * x + beta, lambda x: ((alpha - b) / (2 * x0)) * x**2 + b * x + 0.5 * (alpha - b) * x0 + beta]
-    )
-    return y_pred
-
-# Only linear (for LAMOST)
-def completeness_linear(x, beta, alpha=0.6):
-    y_pred = alpha * x + beta
-    return y_pred
+r_label = r'$\log_{10}R_e$'
+r_unit = r'$h^{-1}$ kpc'
+s_label = r'$\log_{10}\sigma_0$'
+s_unit = r'$\mathrm{km}\ \mathrm{s}^{-1}$'
+i_label = r'$\log_{10}I_e$'
+i_unit = r'$\mathrm{L}_\odot\ \mathrm{pc}^{-2}$'

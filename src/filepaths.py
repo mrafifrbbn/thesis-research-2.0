@@ -99,7 +99,9 @@ FP_FIT_TYPICAL_SCATTER_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smi
 EXTINCTION_DATA_FILEPATHS = {
     '6dFGS': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/6dfgs.csv'),
     'SDSS': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/lamost.csv')
+    'LAMOST': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/lamost.csv'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/sdss_lamost.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, 'data/mocks/extinction_data/all_combined.csv')
 }
 
 # JSON file to store the configs to generate the mocks
@@ -113,3 +115,46 @@ GENRMOCKFP_CPP_FILEPATH = os.path.join(ROOT_PATH, 'src/mocks/GENRMOCKFP/genr_moc
 
 # Parent folder where all the mock data are saved
 MOCK_DATA_FILEPATH = os.path.join(ROOT_PATH, 'data/mocks/mock_galaxies')
+
+# FP outlier filepath
+FP_OUTLIER_FILEPATH = os.path.join(ROOT_PATH, 'data/foundation/fp_outliers/outlier_id.csv')
+
+# Log-distance ratios posterior distribution filepaths
+LOGDIST_POSTERIOR_OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_posterior.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_posterior.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost_posterior.npy'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_lamost_posterior.npy'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_sdss_posterior.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/all_combined_posterior.npy')
+}
+
+# Log-distance measurement output filepaths
+LOGDIST_OUTPUT_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs.csv'),
+    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss.csv'),
+    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost.csv'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_lamost.csv'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_sdss.csv'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/all_combined.csv')
+}
+
+# curve_fit vs analytical formula results
+CURVEFIT_COMPARISON_IMG_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost.png'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_lamost.png'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_sdss.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/all_combined.png')
+}
+
+# Detect skewness in the posterior distributions
+POSTERIOR_SKEWNESS_IMG_FILEPATH = {
+    '6dFGS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_skewness.png'),
+    'SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_skewness.png'),
+    'LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/lamost_skewness.png'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/sdss_lamost_skewness.png'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss_skewness.png'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined_skewness.png')
+}

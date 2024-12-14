@@ -50,7 +50,7 @@ def fit_mock(
         id_end: int,
         output_filepath: str,
         reject_outliers: bool = False,
-        pvals_cut: float = 0.01
+        pvals_cut: float = PVALS_CUT
         ):
     """_summary_
 
@@ -96,7 +96,10 @@ def fit_mock(
         df['r_true'] = df['r'] - df['logdist_pred']
 
         if not use_full_fn:
+            # logger.info(f"Original # of galaxies: {len(df)}")
+            # df = df[df["Sprob"] >= 0.005]
             Sn = df["Sprob"].to_numpy()
+            # logger.info(f"Remaining # of galaxies after Sprob cut: {len(df)}")
         else:
             Sn = 1.0
 
@@ -104,7 +107,7 @@ def fit_mock(
         df['C_m'] = 1.0
 
         # Range of FP parameters
-        if fp_fit_method == 0:
+        if use_full_fn:
             param_boundaries = PARAM_BOUNDARIES
         else:
             param_boundaries = [(1.2, 1.8), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.20, 0.45), (0.1, 0.25)]
@@ -127,14 +130,14 @@ def fit_mock(
                 args=(0.0, data_fit["z"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["dr"].to_numpy(), data_fit["ds"].to_numpy(), data_fit["di"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), True, False, use_full_fn), maxiter=10000, tol=1.0e-6, workers=-1)
 
             # Break from the loop if not iterative
-            if reject_outliers == True:
+            if reject_outliers == False:
                 break
 
             # Calculate the chi-squared 
-            chi_squared = Sn * FP_func(FPparams.x, 0.0, data_fit["z"].to_numpy(), data_fit["r_true"].to_numpy(), data_fit["s"].to_numpy(), data_fit["i"].to_numpy(), data_fit["dr"].to_numpy(), data_fit["ds"].to_numpy(), data_fit["di"].to_numpy(), Snfit, smin, data_fit["lmin"].to_numpy(), data_fit["lmax"].to_numpy(), data_fit["C_m"].to_numpy(), sumgals=False, chi_squared_only=True, use_full_fn=use_full_fn)[0]
+            chi_squared = Sn * FP_func(FPparams.x, 0.0, df["z"].to_numpy(), df["r_true"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["dr"].to_numpy(), df["ds"].to_numpy(), df["di"].to_numpy(), Sn, smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, chi_squared_only=True, use_full_fn=use_full_fn)[0]
             
             # Calculate the p-value (x,dof)
-            pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(data_fit) - 8.0))
+            pvals = sp.stats.chi2.sf(chi_squared, np.sum(chi_squared)/(len(df) - 8.0))
             
             # Reject galaxies with p-values < pvals_cut (probabilities of being part of the sample lower than some threshold)
             data_fit = df.drop(df[pvals < pvals_cut].index).reset_index(drop=True)
@@ -148,10 +151,6 @@ def fit_mock(
             # Set the new count of rejected galaxies
             badcount = badcountnew
             i += 1
-            
-            # Break from the loop if reject_outliers is set to false
-            if reject_outliers == False:
-                break
 
         # logger.info verbose
         print(f"{'-' * 10} Mock {mock_id} {'-' * 10} | FP parameters: {FPparams.x.tolist()}")
@@ -172,6 +171,11 @@ def main():
     mock_filenames = os.listdir(MOCK_DATA_FILEPATH)
 
     for filename in mock_filenames:
+        if not filename.endswith(".txt"):
+            continue
+        
+        logger.info(f"Reading file: {filename}")
+
         # Parse the filename to retrieve settings
         survey = re.search(r"(.*)_mocks", filename).group(1)
 
@@ -181,42 +185,54 @@ def main():
             survey = survey.upper()
 
         smin_setting = int(re.search(r"smin_(\d+)", filename).group(1))
-        fp_fit_method = int(re.search(r"fp_fit_method_(\d+)", filename).group(1))
+        fp_fit_method_filename = int(re.search(r"fp_fit_method_(\d+)", filename).group(1))
+        
+        # For now, focus on mocks generated from full_fn FP
+        if fp_fit_method_filename != 0:
+            continue
 
-        # Generate output file path string
-        output_filepath = Path(os.path.join(ROOT_PATH, f"artifacts/mock_fits/smin_setting_{smin_setting}/fp_fit_method_{fp_fit_method}/{survey.lower()}.csv"))
+        # AD HOC: do for LAMOST only
+        if survey != "LAMOST":
+            continue
 
-        # Create parent directory for the mock fits
-        if not os.path.exists(output_filepath.parent):
-            os.makedirs(output_filepath.parent)
+        # Fit the mocks with the two methods
+        for fp_fit_method in [1]:
+            # Generate output file path string
+            method_ = "full" if fp_fit_method == 0 else "partial"
+            output_filepath = Path(os.path.join(ROOT_PATH, f"artifacts/mock_fits/smin_setting_{smin_setting}/fp_fit_method_{fp_fit_method_filename}/{survey.lower()}_fit_with_{method_}_fn_no_Sn_cut.csv"))
 
-        # Deletes file if fresh_start is called
-        if args.fresh_start:
-            if os.path.exists(output_filepath):
-                os.remove(output_filepath)
-            with open(output_filepath, "w") as fp:
-                fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
-            last_id = 1
-        else:
-            # Create file if not exist
-            if not os.path.exists(output_filepath):
+            # Create parent directory for the mock fits
+            if not os.path.exists(output_filepath.parent):
+                os.makedirs(output_filepath.parent)
+
+            # Deletes file if fresh_start is called
+            if args.fresh_start:
+                if os.path.exists(output_filepath):
+                    os.remove(output_filepath)
                 with open(output_filepath, "w") as fp:
                     fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
-                    last_id = 1
-            # Else, fetch the latest mock ID
+                last_id = 1
             else:
-                last_id = int(pd.read_csv(output_filepath)['mock_id'].max()) + 1
+                # Create file if not exist
+                if not os.path.exists(output_filepath):
+                    with open(output_filepath, "w") as fp:
+                        fp.write("mock_id,a,b,rmean,smean,imean,sigma1,sigma2,sigma3\n")
+                        last_id = 1
+                # Else, fetch the latest mock ID
+                else:
+                    last_id = int(pd.read_csv(output_filepath)['mock_id'].max()) + 1
 
-        fit_mock(
-            mock_filename=os.path.join(MOCK_DATA_FILEPATH, filename),
-            survey=survey,
-            fp_fit_method=fp_fit_method,
-            smin_setting=smin_setting,
-            id_start=last_id,
-            id_end=ID_END,
-            output_filepath=output_filepath,
-            reject_outliers=True
-        )
+            logger.info(f"Fitting mock: {filename} | survey: {survey} | fp_fit_method: {fp_fit_method} | output_filepath: {output_filepath}")
+            fit_mock(
+                mock_filename=os.path.join(MOCK_DATA_FILEPATH, filename),
+                survey=survey,
+                fp_fit_method=fp_fit_method,
+                smin_setting=smin_setting,
+                id_start=last_id,
+                id_end=ID_END,
+                output_filepath=output_filepath,
+                reject_outliers=False
+            )
 
 
 if __name__ == '__main__':

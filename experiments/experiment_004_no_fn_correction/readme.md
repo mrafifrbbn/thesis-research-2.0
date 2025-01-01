@@ -1,0 +1,1 @@
+Experiment to calculate the FP fits without applying any Malmquist bias correction. This is to support the argument why the FP (observed vs predicted r) is tilted with respect to the one-to-one line.

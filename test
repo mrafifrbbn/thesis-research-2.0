@@ -1,0 +1,58 @@
+a_ = 1.8
+fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, figsize=(8 * a_, 2 * a_))
+N_BIN = 10
+WINDOW_SIZE = 0.005
+ylabels = ['$\eta_\mathrm{CF4}$', '$\eta_\mathrm{6dFGS}$', '$\eta_\mathrm{6dFGS} - \eta_\mathrm{CF4}$']
+
+# Load my 6dFGS data
+df_mine = pd.read_csv("../../data/foundation/logdist/smin_setting_1/fp_fit_method_0/6dfgs.csv")
+df_mine["Name"] = df_mine["_6dFGS"]
+
+# Load CF4 6dFGS data
+df_cf4 = pd.read_csv("../../data/external/logdist/CF4_6dF.csv")
+df_cf4['logdist_corr'] = df_cf4['DzDh']
+df_cf4['zcmb_group'] = df_cf4['Vgp'] / LightSpeed
+
+# Plot Cullan's data vs redshift
+## Full redshift-limited sample
+ax1.scatter(df_cf4['zcmb_group'], df_cf4['logdist_corr'], s=1, alpha=0.5)
+z_bin, logdist_bin, logdist_bin_err, logdist_bin_stderr = bin_data(df_cf4['zcmb_group'].to_numpy(), df_cf4['logdist_corr'].to_numpy(), n_bin=N_BIN, window_size=WINDOW_SIZE)
+ax1.errorbar(z_bin, logdist_bin, yerr=logdist_bin_stderr, fmt='o', c='r', mec='k', label='full')
+
+## Galaxies in common with mine
+df_common = df_mine[['objid', 'z_dist_est', 'logdist_all_combined', 'logdist_err_all_combined']]\
+    .merge(df_cf4[['objid', 'zcmb_group', 'logdist_corr', 'logdist_corr_err']], how='inner')
+z_bin, logdist_bin, logdist_bin_err, logdist_bin_stderr = bin_data(df_common['zcmb_group'].to_numpy(), df_common['logdist_corr'].to_numpy(), n_bin=N_BIN, window_size=WINDOW_SIZE)
+# ax1.scatter(df_common['zcmb_group'], df_common['logdist_corr'], s=1, alpha=0.5)
+ax1.errorbar(z_bin, logdist_bin, yerr=logdist_bin_stderr, fmt='s', c='C1', mec='k', label='common')
+
+## Galaxies excluded from mine
+df_excluded = df_cf4[~(df_cf4['objid'].isin(df_common['objid'].tolist()))]
+z_bin, logdist_bin, logdist_bin_err, logdist_bin_stderr = bin_data(df_excluded['zcmb_group'].to_numpy(), df_excluded['logdist_corr'].to_numpy(), n_bin=N_BIN, window_size=WINDOW_SIZE)
+# ax1.scatter(df_excluded['zcmb_group'], df_excluded['logdist_corr'], s=1, alpha=0.5)
+ax1.errorbar(z_bin, logdist_bin, yerr=logdist_bin_stderr, fmt='D', c='C2', mec='k', label='excluded')
+ax1.legend()
+
+
+# Plot my logdist vs redshift
+z_bin, logdist_bin, logdist_bin_err, logdist_bin_stderr = bin_data(df_mine['z_dist_est'].to_numpy(), df_mine['logdist_all_combined'].to_numpy(), n_bin=N_BIN, window_size=WINDOW_SIZE)
+ax2.scatter(df_mine['z_dist_est'], df_mine['logdist_all_combined'], s=1, alpha=0.5)
+ax2.errorbar(z_bin, logdist_bin, yerr=logdist_bin_stderr, fmt='o', c='r', mec='k')
+
+
+# Plot logdist difference vs redshift
+df_common['delta_logdist'] = df_common['logdist_all_combined'] - df_common['logdist_corr']
+z_bin, logdist_bin, logdist_bin_err, logdist_bin_stderr = bin_data(df_common['z_dist_est'].to_numpy(), df_common['delta_logdist'].to_numpy(), n_bin=N_BIN, window_size=WINDOW_SIZE)
+ax3.scatter(df_common['z_dist_est'], df_common['delta_logdist'], s=1, alpha=0.5)
+ax3.errorbar(z_bin, logdist_bin, yerr=logdist_bin_stderr, fmt='o', c='r', mec='k')
+
+
+for i, ax in enumerate(fig.axes):
+    ax.axhline(y=0, c='k', ls='--')
+    ax.set_xlim(0.005, 0.055)
+    ax.set_ylim(-0.3, 0.3)
+    ax.set_ylabel(ylabel=ylabels[i], fontsize=14)
+    ax.set_xlabel(r"$z_\mathrm{CMB}$", fontsize=14)
+    ax.tick_params(axis='both', which='both', labelsize=12, direction="out")
+
+fig.tight_layout()

@@ -32,7 +32,7 @@ data/processed/rsi_derived/*.csv
 
 artifacts/logdist/*
 *.npy
-code/mocks/*
+main_code/mocks/*
 
 *.npy
 

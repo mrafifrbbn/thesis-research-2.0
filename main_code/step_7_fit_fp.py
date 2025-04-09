@@ -17,12 +17,12 @@ load_dotenv(override=True)
 root_dir = os.environ.get("ROOT_PATH")
 if not root_dir in sys.path: sys.path.append(root_dir)
 
-from src.utils.constants import *
-from src.utils.CosmoFunc import *
-from src.utils.functions import create_parent_folder
-from src.utils.logging_config import get_logger
+from main_code.utils.constants import *
+from main_code.utils.CosmoFunc import *
+from main_code.utils.functions import create_parent_folder
+from main_code.utils.logging_config import get_logger
 
-from src.filepaths import *
+from main_code.filepaths import *
 
 pvhub_dir = os.environ.get('PVHUB_DIR_PATH')
 if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)

@@ -5,6 +5,7 @@ import pandas as pd
 import scipy as sp
 from scipy.stats import norm
 from scipy.optimize import curve_fit
+import emcee
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -21,7 +22,7 @@ np.random.seed(42)
 def fit_mock(
         df: pd.DataFrame,
         smin: float,
-        mag_lim: str,
+        param_boundaries: list[tuple[float]],
         use_full_fn: bool = True,
         reject_outliers: bool = False,
         pvals_cut: float = PVALS_CUT
@@ -37,30 +38,6 @@ def fit_mock(
         id_end (int): _description_
         output_filepath (str): _description_
     """
-
-    # Calculate redshift
-    df['z'] = df['cz'] / LIGHTSPEED
-
-    # Calculate predicted true distance and FN integral limits
-    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
-    d_H = sp.interpolate.splev(df['z'].to_numpy(), dist_spline, der=0)
-    df['lmin'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["z"].to_numpy()) + df["kcorr"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - float(mag_lim)) / 5.0
-    df['lmax'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["z"].to_numpy()) + df["kcorr"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_LOW) / 5.0
-
-    # Assume 0 peculiar velocities
-    df['logdist_pred'] = 0.0
-    df['r_true'] = df['r'] - df['logdist_pred']
-
-    if not use_full_fn:
-        Sn = df["Sprob"].to_numpy()
-    else:
-        Sn = 1.0
-
-    df['Sn'] = Sn
-    df['C_m'] = 1.0
-
-    # Range of FP parameters
-    param_boundaries = [(1.4, 2.0), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
 
     avals, bvals = param_boundaries[0], param_boundaries[1]
     rvals, svals, ivals = param_boundaries[2], param_boundaries[3], param_boundaries[4]
@@ -103,6 +80,61 @@ def fit_mock(
         i += 1
 
     return FPparams.x
+
+
+def sample_likelihood_mock(df: pd.DataFrame,
+                      FP_params: np.ndarray, 
+                      smin: float,
+                      use_full_fn: bool,
+                      param_boundaries: list[tuple[float]],
+                      chain_output_filepath: str = None,
+                      ) -> np.ndarray:
+    # The log-prior function for the FP parameters
+    def log_prior(theta):
+        a, b, rmean, smean, imean, sig1, sig2, sig3 = theta
+        a_bound, b_bound, rmean_bound, smean_bound, imean_bound, s1_bound, s2_bound, s3_bound = param_boundaries
+        if a_bound[0] < a < a_bound[1] and b_bound[0] < b < b_bound[1] and rmean_bound[0] < rmean < rmean_bound[1] and smean_bound[0] < smean < smean_bound[1] and imean_bound[0] < imean < imean_bound[1] and s1_bound[0] < sig1 < s1_bound[1] and s2_bound[0] < sig2 < s2_bound[1] and s3_bound[0] < sig3 < s3_bound[1]:
+            return 0.0
+        else:
+            return -np.inf
+
+    # Calculate log-posterior distribution
+    def log_probability(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, use_full_fn, sumgals=True, chi_squared_only=False):
+        lp = log_prior(theta)
+        if not np.isfinite(lp):
+            return -np.inf
+        else:
+            return lp - FP_func(theta, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmin, lmax, C_m, sumgals, chi_squared_only, use_full_fn)
+    
+    # Load the observables needed to sample the likelihood
+    z = df['z'].to_numpy()
+    r = df['r_true'].to_numpy()
+    s = df['s'].to_numpy()
+    i = df['i'].to_numpy()
+    dr = df['dr'].to_numpy()
+    ds = df['ds'].to_numpy()
+    di = df['di'].to_numpy()
+    lmin = df['lmin'].to_numpy()
+    lmax = df['lmax'].to_numpy()
+    C_m = df['C_m'].to_numpy()
+    Sn = df['Sn'].to_numpy()
+
+    # Specify the initial guess, the number of walkers, and dimensions
+    pos = FP_params + 1e-4 * np.random.randn(16, 8)
+    nwalkers, ndim = pos.shape
+
+    # Run the MCMC
+    sampler = emcee.EnsembleSampler(
+        nwalkers, ndim, log_probability, args=(0.0, z, r, s, i, dr, ds, di, Sn, smin, lmin, lmax, C_m, use_full_fn, True, False)
+    )
+    sampler.run_mcmc(pos, 1000, progress=True, skip_initial_state_check=True)
+
+    # Flatten the chain and save as numpy array
+    flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+    if chain_output_filepath is not None:
+        np.save(chain_output_filepath, flat_samples)
+
+    return
 
 
 def fit_logdist(
@@ -198,6 +230,9 @@ def fit_logdist(
 
 
 def main():
+    # Use full f_n method
+    use_full_fn = True
+
     # Load mock data
     input_path = os.path.join(ROOT_PATH, "experiments/experiment_014_mock_magnitudes/mock_full.txt")
     df_mock = pd.read_csv(input_path, delim_whitespace=True)
@@ -209,10 +244,13 @@ def main():
     mock_ids = df_mock["mock_no"].unique().tolist()
     
     # Select subsample based on magnitude upper limit
-    mag_lims = ["14.0", "13.5", "13.0", "12.5", "12.0"]
+    mag_lims = ["14.0", "13.5", "13.0", "12.5"]
+
+    # Range of FP parameters
+    param_boundaries = [(1.4, 2.0), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.25, 0.45), (0.14, 0.25)]
 
     # For each mock sample...
-    for mock_id in sorted(mock_ids):
+    for mock_id in [2, 3, 4, 5]:
         print("Processing mock ", mock_id)
         df_ = df_mock.copy()
         df_ = df_[df_["mock_no"] == mock_id]
@@ -227,12 +265,30 @@ def main():
             # Apply magnitude limit
             df = df[(df["mag_j"] - df["extinction_j"]) <= float(mag_lim)]
 
+            # Calculate predicted true distance and FN integral limits
+            red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
+            d_H = sp.interpolate.splev(df['z'].to_numpy(), dist_spline, der=0)
+            df['lmin'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["z"].to_numpy()) + df["kcorr"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - float(mag_lim)) / 5.0
+            df['lmax'] = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["z"].to_numpy()) + df["kcorr"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - MAG_LOW) / 5.0
+
+            # Assume 0 peculiar velocities
+            df['logdist_pred'] = 0.0
+            df['r_true'] = df['r'] - df['logdist_pred']
+
+            if not use_full_fn:
+                Sn = df["Sprob"].to_numpy()
+            else:
+                Sn = 1.0
+
+            df['Sn'] = Sn
+            df['C_m'] = 1.0
+
             print("Fitting FP Parameters...")
             fp_params = fit_mock(
                 df=df,
                 smin=2.0,
-                mag_lim=mag_lim,
-                use_full_fn=False
+                use_full_fn=use_full_fn,
+                param_boundaries=param_boundaries
             )
 
             # Create dictionary of FP params
@@ -254,6 +310,17 @@ def main():
             #     text = ','.join([str(x) for x in FPparams.x]) + '\n'
             #     myfile.write(text)
 
+            # Sample the likelihood of the FP parameters
+            chain_output_filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_014_mock_magnitudes/fp_fits/mock_{mock_id}/chain_{mag_lim}.npy"
+            sample_likelihood_mock(
+                df=df,
+                FP_params=fp_params,
+                smin=2.0,
+                chain_output_filepath=chain_output_filepath,
+                param_boundaries=param_boundaries,
+                use_full_fn=use_full_fn
+                )
+
             print("Fitting log-distance ratios...")
             df_logdist = fit_logdist(
                 df=df,
@@ -268,7 +335,7 @@ def main():
             df_logdist.to_csv(logdist_filepath, index=False)
 
         # Save FP parameters for a single mock
-        pd.DataFrame(fp_params_list).to_csv(f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_014_mock_magnitudes/fp_fits/mock_{mock_id}.csv", index=False)
+        pd.DataFrame(fp_params_list).to_csv(f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_014_mock_magnitudes/fp_fits/mock_{mock_id}/best_fits.csv", index=False)
 
 
 if __name__ == "__main__":

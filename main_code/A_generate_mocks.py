@@ -16,9 +16,9 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get("ROOT_PATH")
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-from src.filepaths import *
-from src.utils.constants import *
-from src.utils.logging_config import get_logger
+from main_code.filepaths import *
+from main_code.utils.constants import *
+from main_code.utils.logging_config import get_logger
 
 logger = get_logger("generate_mocks")
 

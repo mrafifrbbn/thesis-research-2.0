@@ -1,0 +1,1 @@
+Experiment to determine the bias in peculiar velocity as a function of redshift using the PV estimator in Paula's equation A6.

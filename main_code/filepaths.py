@@ -108,10 +108,10 @@ EXTINCTION_DATA_FILEPATHS = {
 MOCK_CONFIG_FILEPATH = os.path.join(ROOT_PATH, 'artifacts/mock_fits/mock_config.json')
 
 # Templated GENRMOCKFP C++ file path
-GENRMOCKFP_TEMPLATE_FILEPATH = os.path.join(ROOT_PATH, 'src/mocks/GENRMOCKFP/genr_mocks_fp.cpp.template')
+GENRMOCKFP_TEMPLATE_FILEPATH = os.path.join(ROOT_PATH, 'main_code/mocks/GENRMOCKFP/genr_mocks_fp.cpp.template')
 
 # Rendered GENRMOCKFP C++ file path
-GENRMOCKFP_CPP_FILEPATH = os.path.join(ROOT_PATH, 'src/mocks/GENRMOCKFP/genr_mocks_fp.cpp')
+GENRMOCKFP_CPP_FILEPATH = os.path.join(ROOT_PATH, 'main_code/mocks/GENRMOCKFP/genr_mocks_fp.cpp')
 
 # Parent folder where all the mock data are saved
 MOCK_DATA_FILEPATH = os.path.join(ROOT_PATH, 'data/mocks/mock_galaxies')

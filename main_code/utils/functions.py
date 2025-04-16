@@ -108,3 +108,96 @@ def density_contour(x, y, bins_levels_tuple_list: List[Tuple[float, Tuple[float,
         # else:
         #     print(levels)
         ax.contour(X, Y, Z, levels=[levels], origin="lower", colors=[color_shade], **contour_kwargs)
+
+
+def bin_data(x: np.array, y: np.array, xmin: float, xmax: float, n_bin: int):
+    # x_bin = np.linspace(np.min(x), np.max(x), n_bin)
+    x_bin = np.linspace(xmin, xmax, n_bin)
+    x_middle = 0.5 * (x_bin[1:] + x_bin[:-1])
+    delta_x = np.diff(x_bin)[0]
+
+    x_bin_ = []
+    y_bin = []
+    y_bin_err = []
+    y_bin_stderr = []
+
+    for x_trial in x_middle:
+        x_lower = x_trial - 0.5 * delta_x 
+        x_upper = x_trial + 0.5 * delta_x
+
+        y_ = y[(x >= x_lower) & (x < x_upper)]
+
+        if len(y_):
+            x_bin_.append(x_trial)
+            y_bin.append(np.mean(y_))
+            y_bin_err.append(np.std(y_))
+            y_bin_stderr.append(np.std(y_) / np.sqrt(len(y_)))
+        else:
+            continue
+
+    return np.array(x_bin_), np.array(y_bin), np.array(y_bin_err), np.array(y_bin_stderr)
+
+
+def bin_data_median(x: np.array, y: np.array, xmin: float, xmax: float, n_bin: int):
+    # x_bin = np.linspace(np.min(x), np.max(x), n_bin)
+    x_bin = np.linspace(xmin, xmax, n_bin)
+    x_middle = 0.5 * (x_bin[1:] + x_bin[:-1])
+    delta_x = np.diff(x_bin)[0]
+
+    x_bin_ = []
+    y_bin = []
+    y_bin_err = []
+    y_bin_stderr = []
+
+    for x_trial in x_middle:
+        x_lower = x_trial - 0.5 * delta_x 
+        x_upper = x_trial + 0.5 * delta_x
+
+        y_ = y[(x >= x_lower) & (x < x_upper)]
+
+        if len(y_):
+            x_bin_.append(x_trial)
+            y_bin.append(np.median(y_))
+            y_bin_err.append(np.std(y_))
+            y_bin_stderr.append(np.std(y_) / np.sqrt(len(y_)))
+        else:
+            continue
+
+    return np.array(x_bin_), np.array(y_bin), np.array(y_bin_err), np.array(y_bin_stderr)
+
+
+def bin_data_error_weighting(x: np.array, y: np.array, yerr: np.array, xmin: float, xmax: float, n_bin: int):
+    # x_bin = np.linspace(np.min(x), np.max(x), n_bin)
+    x_bin = np.linspace(xmin, xmax, n_bin)
+    x_middle = 0.5 * (x_bin[1:] + x_bin[:-1])
+    delta_x = np.diff(x_bin)[0]
+
+    x_bin_ = []
+    y_bin = []
+    y_bin_err = []
+    y_bin_stderr = []
+
+    for x_trial in x_middle:
+        x_lower = x_trial - 0.5 * delta_x 
+        x_upper = x_trial + 0.5 * delta_x
+
+        mask_ = (x >= x_lower) & (x < x_upper)
+
+        y_ = y[mask_]
+        yerr_ = yerr[mask_]
+
+        if len(y_) >= 5:
+            # Calculate error-weighted mean
+            w = 1 / yerr_**2
+            w_sum = np.sum(w)
+            y_mean = np.sum(w * y_) / w_sum
+            y_stderr = 1 / np.sqrt(w_sum)
+
+            x_bin_.append(x_trial)
+            y_bin.append(y_mean)
+            y_bin_err.append(np.std(y_))
+            y_bin_stderr.append(y_stderr)
+        else:
+            continue
+
+    return np.array(x_bin_), np.array(y_bin), np.array(y_bin_err), np.array(y_bin_stderr)

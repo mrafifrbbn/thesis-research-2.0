@@ -21,8 +21,8 @@ logger = get_logger('fit_mocks')
 ROOT_PATH = os.environ.get("ROOT_PATH")
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-from src.filepaths import *
-from src.utils.constants import *
+from main_code.filepaths import *
+from main_code.utils.constants import *
 
 
 parser = argparse.ArgumentParser()

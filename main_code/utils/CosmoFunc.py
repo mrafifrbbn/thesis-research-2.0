@@ -145,7 +145,7 @@ def ZeffConstN(redshift_low, redshift_high, omega_m, omega_lambda, omega_rad, Hu
     return numerator/denominator
 
 # Redshift-distance lookup table
-def rz_table(redmax = 1.0, nlookbins=400, om=0.3121):
+def rz_table(redmax = 1.0, nlookbins=400, om=0.3121, H0=100.0):
 
     # Generate a redshift-distance lookup table
     red = np.empty(nlookbins)
@@ -154,7 +154,7 @@ def rz_table(redmax = 1.0, nlookbins=400, om=0.3121):
     for i in range(nlookbins):
         red[i] = i*redmax/nlookbins
         ez[i] = Ez(red[i], om, 1.0-om, 0.0, -1.0, 0.0, 0.0)
-        dist[i] = DistDc(red[i], om, 1.0-om, 0.0, 100.0, -1.0, 0.0, 0.0)
+        dist[i] = DistDc(red[i], om, 1.0-om, 0.0, H0, -1.0, 0.0, 0.0)
     red_spline = interpolate.splrep(dist, red, s=0)
     lumred_spline = interpolate.splrep((1.0+red)*dist, red, s=0)
     dist_spline = interpolate.splrep(red, dist, s=0)

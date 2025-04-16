@@ -36,7 +36,8 @@ def calculate_distance_modulus(
         z_dist_est: np.array,
         z_helio: np.array,
         logdist: np.array,
-        logdist_err: np.array
+        logdist_err: np.array,
+        H0: float = 100.0
 ) -> tuple[np.array, np.array]:
     """Function to calculate distance modulus and its corresponding error from log-distance ratio and its error
 
@@ -51,7 +52,7 @@ def calculate_distance_modulus(
     """
 
     # Calculate luminosity distance (in Mpc)
-    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table()
+    red_spline, lumred_spline, dist_spline, lumdist_spline, ez_spline = rz_table(H0=H0)
     d_C = sp.interpolate.splev(z_dist_est, dist_spline)
     d_L = (1 + z_helio) * d_C
 
@@ -85,10 +86,10 @@ def calculate_group_average(
     """
 
     # Calculate weight
-    df["weight"] = 1 / df[DM_src_col]**2
+    df["weight"] = 1 / df[eDM_src_col]**2
 
     # Calculate weight * DM
-    df["weight_times_DM"] = df["weight"] * df[eDM_src_col]
+    df["weight_times_DM"] = df["weight"] * df[DM_src_col]
 
     # Group by Group ID and sum the weighted things
     df_grouped = df.groupby(by=group_id_col, observed=False).agg(
@@ -113,6 +114,13 @@ def main():
             # Load data
             filepath = os.path.join(ROOT_PATH, f"data/foundation/logdist/smin_setting_1/fp_fit_method_0/{survey.lower()}.csv")
             df = pd.read_csv(filepath)
+
+            # Create new columns for logdists from individual and combined FP
+            df["logdist_individual_fp"] = df[f"logdist_{survey.lower()}"]
+            df["logdist_err_individual_fp"] = df[f"logdist_err_{survey.lower()}"]
+
+            df["logdist_combined_fp"] = df[f"logdist_all_combined"]
+            df["logdist_err_combined_fp"] = df[f"logdist_err_all_combined"]
 
             # Calculate distance modulus using Logdist from individual FP
             logger.info("Calculating distance modulus using logdist from each survey's individual FP")
@@ -148,7 +156,8 @@ def main():
             df = df[[
                 'tmass', id_mapper[survey], 'ra', 'dec', 'zhelio', 'z_cmb', 'z_dist_est',
                 'j_m_ext', 'extinction_j', 'kcor_j', 'r', 'er', 's', 'es', 'i', 'ei',
-                'Group', 'Nr', 'DM_individual_fp', 'eDM_individual_fp',
+                'Group', 'Nr', 'logdist_individual_fp', 'logdist_err_individual_fp',
+                'logdist_combined_fp', 'logdist_err_combined_fp', 'DM_individual_fp', 'eDM_individual_fp',
                 'DM_combined_fp', 'eDM_combined_fp', 'group_DM_individual_fp',
                 'group_eDM_individual_fp', 'group_DM_combined_fp', 'group_eDM_combined_fp'
             ]]

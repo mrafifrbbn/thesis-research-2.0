@@ -2,7 +2,6 @@
 import math
 import numpy as np
 from scipy import integrate, interpolate, special
-from scipy.special import erf
 
 # Speed of light in km/s
 LightSpeed = 299792.458
@@ -277,14 +276,3 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
         return 0.5 * np.sum(chi_squared + log_det + 2.0 * FN)
     else:
         return 0.5 * (chi_squared + log_det)
-
-# Gaussian function (for fitting)
-def gaus(x, mu, sig):
-    return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
-
-# Skew-normal distribution
-def skewnormal(x, loc, err, alpha):
-    A = 1 / (np.sqrt(2 * np.pi) * err)
-    B = np.exp(-(x - loc)**2/(2 * err**2))
-    C = 1 + erf(alpha * (x - loc) / (np.sqrt(2) * err))
-    return A * B * C

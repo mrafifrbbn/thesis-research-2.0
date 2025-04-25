@@ -41,6 +41,37 @@ def completeness_linear(x, beta, alpha=0.6):
     return y_pred
 
 
+# Gaussian function (for fitting)
+def gaus(x, mu, sig):
+    return (1 / np.sqrt(2 * np.pi * sig**2)) * np.exp(-0.5 * ((x - mu) / sig)**2)
+
+# Skew-normal distribution
+def skewnormal(x, loc, err, alpha):
+    A = 1 / (np.sqrt(2 * np.pi) * err)
+    B = np.exp(-(x - loc)**2/(2 * err**2))
+    C = 1 + erf(alpha * (x - loc) / (np.sqrt(2) * err))
+    return A * B * C
+
+
+def remove_outliers(x, k=5.0):
+    # Select inliers using MAD
+    median_x = np.median(x)
+    MAD_x = np.median(np.absolute(x - median_x))
+    lower_ = median_x - k * MAD_x
+    upper_ = median_x + k * MAD_x
+    x_inliers = x[(x >= lower_) & (x <= upper_)]
+
+    # Calculate standard deviation using the assumed inliers
+    mean_ = np.mean(x_inliers)
+    std_ = np.std(x_inliers)
+    lower_ = mean_ - 5 * std_
+    upper_ = mean_ + 5 * std_
+
+    # Define outliers as 5 sigma away from the mean
+    x_outliers = x[(x < lower_) | (x > upper_)]
+    return x_inliers, x_outliers
+
+
 def find_contour_level(x, proba_xy, volume_pct):
     """Calculates the level of a P(x+Δx, y+Δy) function corresponding to the volume_pct.
     This does it by calculating the total probability (volume or sum) of proba_xy above trial value x,
@@ -110,7 +141,7 @@ def density_contour(x, y, bins_levels_tuple_list: List[Tuple[float, Tuple[float,
         ax.contour(X, Y, Z, levels=[levels], origin="lower", colors=[color_shade], **contour_kwargs)
 
 
-def bin_data(x: np.array, y: np.array, xmin: float, xmax: float, n_bin: int):
+def bin_data(x: np.array, y: np.array, yerr: np.array, xmin: float, xmax: float, n_bin: int):
     # x_bin = np.linspace(np.min(x), np.max(x), n_bin)
     x_bin = np.linspace(xmin, xmax, n_bin)
     x_middle = 0.5 * (x_bin[1:] + x_bin[:-1])
@@ -138,7 +169,7 @@ def bin_data(x: np.array, y: np.array, xmin: float, xmax: float, n_bin: int):
     return np.array(x_bin_), np.array(y_bin), np.array(y_bin_err), np.array(y_bin_stderr)
 
 
-def bin_data_median(x: np.array, y: np.array, xmin: float, xmax: float, n_bin: int):
+def bin_data_median(x: np.array, y: np.array, yerr: np.array, xmin: float, xmax: float, n_bin: int):
     # x_bin = np.linspace(np.min(x), np.max(x), n_bin)
     x_bin = np.linspace(xmin, xmax, n_bin)
     x_middle = 0.5 * (x_bin[1:] + x_bin[:-1])

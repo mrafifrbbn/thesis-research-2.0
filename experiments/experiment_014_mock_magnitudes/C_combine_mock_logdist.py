@@ -15,7 +15,7 @@ def main():
             df_ = pd.read_csv(filepath)[["#mockgal_ID", f"logdist_{mag_lim}", f"logdist_{mag_lim}_err"]]
 
             # Merge with the 13.65
-            df = df.merge(df_, on="#mockgal_ID")
+            df = df.merge(df_, on="#mockgal_ID", how="left")
 
         # Save
         filepath = base_path + f"logdists/mock_{mock_id}/mock_combined.csv"

@@ -1,0 +1,1 @@
+Experiment to calculate 1D Kolmogorov-Smirnov test statistic and the corresponding p-value between the distribution of data and mock FP observables (r, s, i)

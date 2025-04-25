@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import scipy as sp
 from scipy.stats import norm
 from scipy.optimize import curve_fit
-from typing import List, Dict
+from scipy.special import erf
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -15,9 +15,9 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get('ROOT_PATH')
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-from src.utils.constants import *
-from src.utils.CosmoFunc import *
-from src.filepaths import (
+from main_code.utils.constants import *
+from main_code.utils.CosmoFunc import *
+from main_code.filepaths import (
     OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
     LOGDIST_POSTERIOR_OUTPUT_FILEPATH,
@@ -25,7 +25,7 @@ from src.filepaths import (
     CURVEFIT_COMPARISON_IMG_FILEPATH,
     POSTERIOR_SKEWNESS_IMG_FILEPATH
 )
-from src.utils.logging_config import get_logger
+from main_code.utils.logging_config import get_logger
 
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 FP_FIT_METHOD = int(os.environ.get('FP_FIT_METHOD'))

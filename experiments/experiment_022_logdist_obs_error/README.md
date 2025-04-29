@@ -1,0 +1,1 @@
+Experiment to compare logdists between measurements but only including the observational error, i.e. subtracting (in quadrature) the error contribution from the intrinsic scatter of the FP.

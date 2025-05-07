@@ -19,7 +19,7 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 from main_code.utils.constants import *
 from main_code.utils.functions import gaus
 from main_code.utils.CosmoFunc import *
-from main_code.filepaths import (
+from main_code.utils.filepaths import (
     FOUNDATION_ZONE_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
 )
@@ -175,10 +175,10 @@ def fit_FP(
     c_value: float = -0.2
           ) -> Tuple[np.ndarray, pd.DataFrame]:
     
-    logger.info(f"{'=' * 10} Fitting {survey} Fundamental Plane | Ngals = {len(df)} {'=' * 10}")
+    print(f"{'=' * 10} Fitting {survey} Fundamental Plane | Ngals = {len(df)} {'=' * 10}")
 
     # Load peculiar velocity model
-    logger.info("Calculating predicted l.o.s. peculiar velocity from model")
+    print("Calculating predicted l.o.s. peculiar velocity from model")
     pv_model = TwoMPP_SDSS_6dF(verbose=True) # type: ignore
 
     # Calculate predicted PVs using observed group redshift in CMB frame, and calculate cosmological redshift
@@ -367,7 +367,7 @@ def fit_logdist(
     d_H = np.outer(10.0**(-dbins), dz_cluster)
     lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
     lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
-    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, use_full_fn=use_full_fn, c=c_value)
+    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, use_full_fn=use_full_fn, a=a_value, b=b_value, c=c_value)
     
     # Calculate full FN
     FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin, a_value, b_value)
@@ -452,12 +452,13 @@ def main():
     for survey in SURVEY_LIST:
         # Get input filename (outlier-rejected sample)
         input_filepath = FOUNDATION_ZONE_FP_SAMPLE_FILEPATHS[survey]
+        print("Input filepath: ", input_filepath)
         df = pd.read_csv(input_filepath)
         
         # Survey's veldisp limit
         smin = SURVEY_VELDISP_LIMIT[1][survey]
 
-        logger.info(f"Fitting the FP for {survey}. Treating rmean as dependent variable...")
+        print(f"Fitting the FP for {survey}. Treating rmean as dependent variable...")
         params, df_fitted = fit_FP(
             survey=survey,
             df=df,
@@ -470,9 +471,7 @@ def main():
             b_value=b_,
             c_value=c_
         )
-        # print("Before: ", params)
-        # params[0] = c_ + a_ * params[1] + b_ * params[2]
-        # print("After: ", params)
+        
         FP_params_bestfit.append(params.copy())
         print("FP_params_bestfit: ", FP_params_bestfit)
 
@@ -480,8 +479,8 @@ def main():
         # filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_020_fix_abc/rmean_fixed/{survey.lower()}.csv"
         # df_fitted.to_csv(filepath, index=False)
 
-        logger.info(f"Sampling the FP likelihood for {survey}.")
-        chain_output_filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_020_fix_abc/rmean_fixed/{survey.lower()}_chain.npy"
+        # logger.info(f"Sampling the FP likelihood for {survey}.")
+        # chain_output_filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_020_fix_abc/rmean_fixed/{survey.lower()}_chain.npy"
         # params_mean = sample_likelihood(
         #     df=df_fitted,
         #     FP_params=params,
@@ -517,12 +516,15 @@ def main():
     FP_columns = ['rmean', 'smean', 'imean', 's1', 's2', 's3']
     filepath_ = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_020_fix_abc/rmean_fixed/fp_fit.csv"
     df = pd.DataFrame(FP_params_bestfit, columns=FP_columns, index=SURVEY_LIST)
+    df["a"] = a_
+    df["b"] = b_
+    df["c"] = c_
     print(df)
     df.to_csv(filepath_)
 
-    logger.info('Fitting log-distance ratios successful!')
-    # except Exception as e:
-    #     logger.error(f'Fitting log-distance ratios failed. Reason: {e}.')
+    # logger.info('Fitting log-distance ratios successful!')
+    # # except Exception as e:
+    # #     logger.error(f'Fitting log-distance ratios failed. Reason: {e}.')
 
 
 if __name__ == '__main__':

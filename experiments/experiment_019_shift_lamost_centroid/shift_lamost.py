@@ -17,7 +17,7 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
 from main_code.utils.constants import *
 from main_code.utils.CosmoFunc import *
-from main_code.filepaths import (
+from main_code.utils.filepaths import (
     OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
 )

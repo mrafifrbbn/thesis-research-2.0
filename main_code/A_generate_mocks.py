@@ -16,7 +16,7 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get("ROOT_PATH")
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-from main_code.filepaths import *
+from main_code.utils.filepaths import *
 from main_code.utils.constants import *
 from main_code.utils.logging_config import get_logger
 

@@ -5,7 +5,7 @@ from astropy.io import fits
 from astropy.table import Table
 from utils.logging_config import get_logger
 from dotenv import load_dotenv
-from filepaths import *
+from main_code.utils.filepaths import *
 
 load_dotenv(override=True)
 

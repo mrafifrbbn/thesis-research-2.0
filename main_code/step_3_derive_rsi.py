@@ -13,7 +13,7 @@ from dustmaps.sfd import SFDQuery
 from dustmaps.config import config
 config['data_dir'] = os.path.join(ROOT_PATH, 'etc/dustmaps')
 
-from filepaths import *
+from main_code.utils.filepaths import *
 from utils.constants import *
 from utils.logging_config import get_logger
 from utils.helio_cmb import perform_corr

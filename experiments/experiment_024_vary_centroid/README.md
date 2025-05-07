@@ -1,0 +1,1 @@
+Similar to experiment_020, but here I fix a, b, c, and the sigmas, which left smean and imean to be varied.

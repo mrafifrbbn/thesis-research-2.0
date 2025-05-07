@@ -2,9 +2,7 @@
 import math
 import numpy as np
 from scipy import integrate, interpolate, special
-
-# Speed of light in km/s
-LightSpeed = 299792.458
+from .constants import LIGHTSPEED
 
 # Calculates H(z)/H0
 def Ez(redshift, omega_m, omega_lambda, omega_rad, w0, wa, ap):
@@ -27,17 +25,17 @@ def DistDcIntegrand(redshift, omega_m, omega_lambda, omega_rad, w0, wa, ap):
 
 # The Comoving Distance in Mpc
 def DistDc(redshift, omega_m, omega_lambda, omega_rad, Hubble_Constant, w0, wa, ap):
-    return (LightSpeed/Hubble_Constant)*integrate.quad(DistDcIntegrand, 0.0, redshift, args=(omega_m, omega_lambda, omega_rad, w0, wa, ap))[0]
+    return (LIGHTSPEED/Hubble_Constant)*integrate.quad(DistDcIntegrand, 0.0, redshift, args=(omega_m, omega_lambda, omega_rad, w0, wa, ap))[0]
 
 # The Transverse Comoving Distance in Mpc
 def DistDm(redshift, omega_m, omega_lambda, omega_rad, Hubble_Constant, w0, wa, ap):
     omega_k = 1.0-omega_m-omega_lambda-omega_rad
     dc = DistDc(redshift, omega_m, omega_lambda, omega_rad, Hubble_Constant, w0, wa, ap)
     if (omega_k > 0):
-        prefac = (Hubble_Constant*math.sqrt(omega_k))/LightSpeed
+        prefac = (Hubble_Constant*math.sqrt(omega_k))/LIGHTSPEED
         return math.sinh(dc*prefac)/prefac
     elif (omega_k < 0):
-        prefac = (Hubble_Constant*math.sqrt(math.fabs(omega_k)))/LightSpeed
+        prefac = (Hubble_Constant*math.sqrt(math.fabs(omega_k)))/LIGHTSPEED
         return math.sin(dc*prefac)/prefac
     else: 
         return dc
@@ -86,11 +84,11 @@ def Omega_m_z(redshift, omega_m, omega_lambda, omega_rad, w0, wa, ap):
 
 # Calculates the Volume Averaged Angular Diameter Distance
 def DistDv(redshift, Da, HubbleParam):
-    return (((1.0+redshift)**2*LightSpeed*redshift*Da**2)/HubbleParam)**(1.0/3.0)
+    return (((1.0+redshift)**2*LIGHTSPEED*redshift*Da**2)/HubbleParam)**(1.0/3.0)
 
 # Calculates the Alcock-Paczynski Parameter F
 def AP_F(redshift, Da, HubbleParam):
-    return ((1.0+redshift)*Da*HubbleParam)/LightSpeed
+    return ((1.0+redshift)*Da*HubbleParam)/LIGHTSPEED
 
 # Calculates the growth factor, EXACTLY as used in PICOLA, which is normalised in some weird way
 def GrowthFactorPICOLA(redshift, omega_m):
@@ -178,7 +176,7 @@ def FN_func(FPparams, zobs, er, es, ei, lmin, lmax, smin):
     sigmari =  -b/norm1*sigma1**2 +   b*fac4/norm2*sigma2**2 + fac1*fac3/(norm1*norm2)*sigma3**2
     sigmasi = a*b/norm1*sigma1**2 - k*b*fac4/norm2*sigma2**2 + fac2*fac3/(norm1*norm2)*sigma3**2
 
-    err_r = er**2 + np.log10(1.0 + 300.0/(LightSpeed*zobs))**2 + sigmar2
+    err_r = er**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*zobs))**2 + sigmar2
     err_s = es**2 + sigmas2
     err_i = ei**2 + sigmai2
     cov_ri = -1.0*er*ei + sigmari
@@ -241,7 +239,7 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
     sigma_cov = np.array([[sigmar2, sigmars, sigmari], [sigmars, sigmas2, sigmasi], [sigmari, sigmasi, sigmai2]])
 
     # Compute the chi-squared and determinant (quickly!)
-    cov_r = err_r**2 + np.log10(1.0 + 300.0/(LightSpeed*z_obs))**2 + sigmar2
+    cov_r = err_r**2 + np.log10(1.0 + 300.0/(LIGHTSPEED*z_obs))**2 + sigmar2
     cov_s = err_s**2 + sigmas2
     cov_i = err_i**2 + sigmai2
     cov_ri = -1.0*err_r*err_i + sigmari

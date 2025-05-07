@@ -22,7 +22,7 @@ from main_code.utils.CosmoFunc import *
 from main_code.utils.functions import create_parent_folder
 from main_code.utils.logging_config import get_logger
 
-from main_code.filepaths import *
+from main_code.utils.filepaths import *
 
 pvhub_dir = os.environ.get('PVHUB_DIR_PATH')
 if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
@@ -226,6 +226,13 @@ def sample_likelihood(df: pd.DataFrame,
     # Flatten the chain and save as numpy array
     logger.info("Flattening the chain and saving them as numpy array")
     flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+
+    # Calculate c and append to params
+    flat_samples_T = flat_samples.T
+    c = flat_samples_T[2] - flat_samples_T[0] * flat_samples_T[3] - flat_samples_T[1] * flat_samples_T[4]
+    flat_samples_T = np.insert(flat_samples_T, [2], c, axis=0)
+    flat_samples = flat_samples_T.T
+
     if chain_output_filepath is not None:
         np.save(chain_output_filepath, flat_samples)
 
@@ -345,8 +352,7 @@ def main():
                 smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
             # FP parameter boundaries to search the maximum over
-            # param_boundaries = PARAM_BOUNDARIES
-            param_boundaries = [(1.4, 2.5), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.20, 0.45), (0.1, 0.25)]
+            param_boundaries = [(1.2, 2.5), (-1.1, -0.7), (-0.2, 0.4), (2.1, 2.4), (3.1, 3.5), (0.0, 0.06), (0.20, 0.45), (0.1, 0.25)]
 
             logger.info(f"Fitting the FP for {survey}.")
             params, df_fitted = fit_FP(
@@ -358,8 +364,6 @@ def main():
                 use_full_fn=USE_FULL_FN,
                 pvals_cut=PVALS_CUT
             )
-            logger.info(f"Final FP for {survey}: {params}")
-            FP_params.append(params)
 
             # Save the cleaned sample
             output_filepath = OUTLIER_REJECT_OUTPUT_FILEPATH[survey]
@@ -375,6 +379,13 @@ def main():
                 chain_output_filepath=chain_output_filepath,
                 param_boundaries=param_boundaries
                 )
+            
+            # Calculate c and insert to params
+            c = params[2] - params[0] * params[3] - params[1] * params[4]
+            params = np.insert(params, [2], c)
+            logger.info(f"Final FP for {survey}: {params}")
+            FP_params.append(params)
+
             # Calculate difference between likelihood sampling and diff. evo. algorithm
             params_diff = params - params_mean
             logger.info(f"Difference between evo algorithm and MCMC likelihood sampling = {params_diff}")
@@ -382,15 +393,16 @@ def main():
         # Convert the FP parameters to dataframe and save to artifacts folder
         logger.info("Saving the derived FP fits to artifacts folder...")
         FP_params = np.array(FP_params)
-        FP_columns = ['a', 'b', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
-        pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST).to_csv(FP_FIT_OUTPUT_FILEPATH)
+        FP_columns = ['a', 'b', 'c', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
+        df = pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST)
+        df.to_csv(FP_FIT_OUTPUT_FILEPATH)
 
         logger.info("Calculating the FP scatter...")
         calculate_fp_scatter()
 
         logger.info(f'Fitting the Fundamental Plane successful!')
     except Exception as e:
-        logger.error(f'Fitting the FP failed. Reason: {e}.')
+        logger.error(f'Fitting the FP failed. Reason: {e}.', exc_info=True)
 
 if __name__ == '__main__':
     main()

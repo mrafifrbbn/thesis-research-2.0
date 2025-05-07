@@ -10,7 +10,7 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get('ROOT_PATH')
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-from main_code.filepaths import GENRMOCKFP_TEMPLATE_FILEPATH, GENRMOCKFP_CPP_FILEPATH
+from main_code.utils.filepaths import GENRMOCKFP_TEMPLATE_FILEPATH, GENRMOCKFP_CPP_FILEPATH
 from main_code.A_generate_mocks import generate_genrmockfp_file
 
 def main():

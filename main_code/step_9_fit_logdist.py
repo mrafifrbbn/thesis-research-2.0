@@ -17,9 +17,11 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
 from main_code.utils.constants import *
 from main_code.utils.CosmoFunc import *
+from main_code.utils.functions import gaus, skewnormal
 from main_code.utils.filepaths import (
     OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
+    FP_FIT_ABC_FIXED_FILEPATH,
     LOGDIST_POSTERIOR_OUTPUT_FILEPATH,
     LOGDIST_OUTPUT_FILEPATH,
     CURVEFIT_COMPARISON_IMG_FILEPATH,
@@ -29,8 +31,6 @@ from main_code.utils.logging_config import get_logger
 
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 FP_FIT_METHOD = int(os.environ.get('FP_FIT_METHOD'))
-# Add new data combinations here
-NEW_SURVEY_LIST = (SURVEY_LIST + ['6dFGS_SDSS', 'SDSS_LAMOST', 'ALL_COMBINED']) if SMIN_SETTING == 1 else SURVEY_LIST
 
 # Create boolean from FP_FIT_METHOD value
 USE_FULL_FN = True if FP_FIT_METHOD == 0 else False
@@ -43,7 +43,7 @@ def fit_logdist(
         survey: str,
         df: pd.DataFrame,
         smin: float,
-        FPlabel: str,
+        FPmethod: str,
         FPparams: np.ndarray,
         use_full_fn: bool = True,
         mag_high: float = MAG_HIGH,
@@ -64,11 +64,8 @@ def fit_logdist(
     logger.info(f'Number of {survey} data = {len(df)}.')
 
     # Define the range of logdists values to be calculated
-    dmin, dmax, nd = -1.5, 1.5, 2001
+    dmin, dmax, nd = -1.5, 1.5, 1001
     dbins = np.linspace(dmin, dmax, nd, endpoint=True)
-
-    # if survey.lower() == "sdss":
-    #     df["es"] *= 1.5
 
     # Calculate full FN
     d_H = np.outer(10.0**(-dbins), dz_cluster)
@@ -105,17 +102,15 @@ def fit_logdist(
     alpha = delta / (np.sqrt(1.0 - delta**2))
 
     # Store the skew-normal values calculated analytically to the dataframe
-    df[f"logdist_mean_{FPlabel.lower()}"] = mean
-    df[f"logdist_std_{FPlabel.lower()}"] = err
-    df[f"logdist_alpha_{FPlabel.lower()}"] = alpha
-    df[f"logdist_loc_{FPlabel.lower()}"] = loc
-    df[f"logdist_scale_{FPlabel.lower()}"] = scale
+    df[f"logdist_mean_{FPmethod.lower()}"] = mean
+    df[f"logdist_std_{FPmethod.lower()}"] = err
+    df[f"logdist_alpha_{FPmethod.lower()}"] = alpha
 
     # Transpose the PDF and return to linear unit
     y = np.exp(logP_dist.T)
     # Save the posterior distributions
     if save_posterior:
-        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/{survey.lower()}_posterior_{FPlabel.lower()}_fp.npy')
+        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/{survey.lower()}_posterior_{FPmethod.lower()}_fp.npy')
         np.save(logdist_posterior_filepath, y)
 
     # Find mean and standard deviation of the distribution using curve_fit
@@ -139,10 +134,18 @@ def fit_logdist(
         rmse_ = np.sqrt((1 / dbins.shape[0]) * np.sum((y_ - ypred)**2, axis=0))
         rmse.append(rmse_)
 
-    df[f'logdist_{FPlabel.lower()}'] = logdist_mean
-    df[f'logdist_err_{FPlabel.lower()}'] = logdist_std
-    df[f'logdist_chisq_{FPlabel.lower()}'] = chisq
-    df[f'logdist_rmse_{FPlabel.lower()}'] = rmse
+    df[f'logdist_{FPmethod.lower()}'] = logdist_mean
+    df[f'logdist_err_{FPmethod.lower()}'] = logdist_std
+
+    # Calculate observational error
+    a, b, sigma1 = FPparams[0], FPparams[1], FPparams[5]
+    logdist_int_err = sigma1 * np.sqrt(1 + a**2 + b**2)
+    df[f"logdist_int_err_{FPmethod.lower()}"] = logdist_int_err
+    df[f"logdist_obs_err_{FPmethod.lower()}"] = np.sqrt(np.array(logdist_std)**2 - logdist_int_err**2)
+
+    # Calculate logdist fit's goodness-of-fit
+    df[f'logdist_chisq_{FPmethod.lower()}'] = chisq
+    df[f'logdist_fit_rmse_{FPmethod.lower()}'] = rmse
     
     return df
 
@@ -209,8 +212,29 @@ def main():
         logger.info('Fitting log-distance ratios...')
         logger.info(f'Environment variable: SMIN_SETTING = {SMIN_SETTING}.')
         
+        # FP base parameters
+        fp_base_params = ["a", "b", "rmean", "smean", "imean", "s1", "s2", "s3"]
+
+        # Load FP parameters for fitting
+        fp_methods_dict = {
+            "individual": {},
+            "combined": {},
+            "abc_fixed": {}
+        }
+        # 1. Individual and combined FP
+        fp_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0)
         for survey in SURVEY_LIST:
-            print(survey)
+            fp_methods_dict["individual"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
+            fp_methods_dict["combined"][survey] = fp_params.loc["ALL_COMBINED"][fp_base_params].to_numpy()
+
+        # 2. abc-fixed FP
+        fp_params = pd.read_csv(FP_FIT_ABC_FIXED_FILEPATH, index_col=0)
+        for survey in SURVEY_LIST:
+            fp_methods_dict["abc_fixed"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
+
+        # Iterate for all sample
+        for survey in SURVEY_LIST:
+            logger.info(f"Calculating log-distance ratio for {survey}")
             # Get input filename (outlier-rejected sample)
             input_filepath = OUTLIER_REJECT_FP_SAMPLE_FILEPATHS[survey]
             df = pd.read_csv(input_filepath)
@@ -218,16 +242,14 @@ def main():
             # Survey's veldisp limit
             smin = SURVEY_VELDISP_LIMIT[SMIN_SETTING][survey]
 
-            # Iterate all available FP
-            print(FP_FIT_FILEPATH)
-            FPparams = pd.read_csv(FP_FIT_FILEPATH, index_col=0)
-
-            for fp_label, params in FPparams.iterrows():
+            # Derive logdists for all FP methods
+            for fp_method in fp_methods_dict:
+                params = fp_methods_dict[fp_method][survey]
                 df = fit_logdist(
                     survey=survey,
                     df=df,
                     smin=smin,
-                    FPlabel=fp_label,
+                    FPmethod=fp_method,
                     FPparams=params,
                     use_full_fn=USE_FULL_FN,
                     save_posterior=True
@@ -245,7 +267,7 @@ def main():
 
         logger.info('Fitting log-distance ratios successful!')
     except Exception as e:
-        logger.error(f'Fitting log-distance ratios failed. Reason: {e}.')
+        logger.error(f'Fitting log-distance ratios failed. Reason: {e}.', exc_info=True)
 
 
 if __name__ == '__main__':

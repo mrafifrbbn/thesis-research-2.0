@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import scipy as sp
 from scipy.stats import norm
 from scipy.optimize import curve_fit
-from typing import List, Dict
+from scipy.special import erf
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -15,17 +15,17 @@ load_dotenv(override=True)
 ROOT_PATH = os.environ.get('ROOT_PATH')
 if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
-pvhub_dir = os.environ.get('PVHUB_DIR_PATH')
-if not pvhub_dir in sys.path: sys.path.append(pvhub_dir)
-from pvhub import * # type: ignore
-
 from main_code.utils.constants import *
-from main_code.utils.functions import gaus
 from main_code.utils.CosmoFunc import *
+from main_code.utils.functions import gaus, skewnormal
 from main_code.utils.filepaths import (
-    OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS,
+    OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
-    FP_FIT_ABC_FIXED_FILEPATH
+    FP_FIT_ABC_FIXED_FILEPATH,
+    LOGDIST_POSTERIOR_OUTPUT_FILEPATH,
+    LOGDIST_OUTPUT_FILEPATH,
+    CURVEFIT_COMPARISON_IMG_FILEPATH,
+    POSTERIOR_SKEWNESS_IMG_FILEPATH
 )
 from main_code.utils.logging_config import get_logger
 
@@ -67,26 +67,13 @@ def fit_logdist(
     dmin, dmax, nd = -1.5, 1.5, 1001
     dbins = np.linspace(dmin, dmax, nd, endpoint=True)
 
-    pv_model = TwoMPP_SDSS_6dF(verbose=True) # type: ignore
-
-    # Calculate predicted PVs using observed group redshift in CMB frame, and calculate cosmological redshift
-    df['v_pec'] = pv_model.calculate_pv(df['ra'].to_numpy(), df['dec'].to_numpy(), df['z_dist_est'].to_numpy())
-    df['z_pec'] = df['v_pec'] / LIGHTSPEED
-    df['z_cosmo'] = ((1 + df['z_dist_est']) / (1 + df['z_pec'])) - 1
-    d_H_pred = sp.interpolate.splev(df['z_cosmo'].to_numpy(), dist_spline, der=0)
-
     # Calculate full FN
     d_H = np.outer(10.0**(-dbins), dz_cluster)
     lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
     lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
     
-    # Calculate predicted logdistance-ratios (subtract with prediction from PV model)
-    d_z = sp.interpolate.splev(df['z_dist_est'].to_numpy(), dist_spline, der=0)
-    df['logdist_pred'] = np.log10(d_z / d_H_pred)
-    df['r_true'] = df['r'] - df['logdist_pred']
-
     # Calculate negative of log likelihood
-    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r_true"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, use_full_fn=use_full_fn)
+    loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, use_full_fn=use_full_fn)
     
     # Calculate full FN
     FNvals = FN_func(FPparams, df["z_cmb"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), lmin, lmax, smin)
@@ -166,6 +153,62 @@ def fit_logdist(
     
     return df
 
+def compare_cf_vs_formula() -> None:
+    """
+    This function compares the mean and std obtained using analytical formula and the one obtained from scipy's curve_fit.
+    """
+    for survey in NEW_SURVEY_LIST:
+        df = pd.read_csv(LOGDIST_OUTPUT_FILEPATH[survey])
+        
+        # Compare Cullan's mean and curve_fit mean
+        fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(16, 6))
+        ax1.scatter(df['logdist_mean'], df['logdist_mean_cf'], s=1)
+        ax1.set_ylabel('Mean from curve_fit', size=14)
+        ax1.set_xlabel('Mean from formula', size=14)
+
+        # Compare Cullan's std and curve_fit std
+        ax2.scatter(df['logdist_std'], df['logdist_std_cf'], s=1)
+        ax2.set_ylabel('Standard deviation from curve_fit', size=14)
+        ax2.set_xlabel('Standard deviation from formula', size=14)
+
+        plt.savefig(CURVEFIT_COMPARISON_IMG_FILEPATH[survey], dpi=300)
+
+def plot_best_worst_posterior() -> None:
+    """
+    This function compares the least and most skewed posterior distributions.
+    """
+    for survey in NEW_SURVEY_LIST:
+        # Load the posterior distributions
+        df = pd.read_csv(LOGDIST_OUTPUT_FILEPATH[survey])
+        dbins = np.linspace(-1.5, 1.5, 1001, endpoint=True)
+        y = np.load(LOGDIST_POSTERIOR_OUTPUT_FILEPATH[survey])
+
+        # Grab the index with the best and worst chi-square (relative to a Gaussian distribution)
+        index_worst = df['logdist_chisq_cf'].sort_values().index[-1]
+        index_best = df['logdist_chisq_cf'].sort_values().index[0]
+
+        fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(16, 6))
+
+        # Plot the best posteriors
+        ax1.plot(dbins, y[index_best, :], label='Best posterior', color='k')
+        ax1.plot(dbins, norm.pdf(dbins, loc=df.loc[index_best, 'logdist_mean_cf'], scale=df.loc[index_best, 'logdist_std_cf']), label='curve fit')
+        ax1.plot(dbins, skewnormal(dbins, loc=df.loc[index_best, 'logdist_loc'], err=df.loc[index_best, 'logdist_scale'], alpha=df.loc[index_best, 'logdist_alpha']), c='red', ls='--', label='Skew-normal')
+        ax1.set_xlim(-1.0, 1.0)
+        ax1.set_xlabel(r'$\eta$', size=20)
+        ax1.set_ylabel(r'PDF', size=20)
+        ax1.legend(fontsize=14)
+
+        # Plot the worst posterior
+        ax2.plot(dbins, y[index_worst, :], label='Worst posterior', color='k')
+        ax2.plot(dbins, norm.pdf(dbins, loc=df.loc[index_worst, 'logdist_mean_cf'], scale=df.loc[index_worst, 'logdist_std_cf']), label='curve fit')
+        ax2.plot(dbins, skewnormal(dbins, loc=df.loc[index_worst, 'logdist_loc'], err=df.loc[index_worst, 'logdist_scale'], alpha=df.loc[index_worst, 'logdist_alpha']), c='red', ls='--', label='Skew-normal')
+        ax2.set_xlim(-1.0, 1.0)
+        ax2.set_xlabel(r'$\eta$', size=20)
+        ax2.set_ylabel(r'PDF', size=20)
+        ax2.legend(fontsize=14)
+
+        plt.savefig(POSTERIOR_SKEWNESS_IMG_FILEPATH[survey], dpi=300)
+
 
 def main():
     try:
@@ -178,25 +221,20 @@ def main():
 
         # Load FP parameters for fitting
         fp_methods_dict = {
-            "individual": {},
-            "combined": {},
             "abc_fixed": {}
         }
-        # 1. Individual and combined FP
-        fp_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0)
-        for survey in SURVEY_LIST:
-            fp_methods_dict["individual"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
-            fp_methods_dict["combined"][survey] = fp_params.loc["ALL_COMBINED"][fp_base_params].to_numpy()
 
         # 2. abc-fixed FP
-        fp_params = pd.read_csv(FP_FIT_ABC_FIXED_FILEPATH, index_col=0)
+        filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_026_fix_abc_v2/fp_fits.csv"
+        fp_params = pd.read_csv(filepath, index_col=0)
         for survey in SURVEY_LIST:
             fp_methods_dict["abc_fixed"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
 
+        # Iterate for all sample
         for survey in SURVEY_LIST:
-            print(survey)
+            logger.info(f"Calculating log-distance ratio for {survey}")
             # Get input filename (outlier-rejected sample)
-            input_filepath = OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS[survey]
+            input_filepath = OUTLIER_REJECT_FP_SAMPLE_FILEPATHS[survey]
             df = pd.read_csv(input_filepath)
             
             # Survey's veldisp limit
@@ -216,7 +254,7 @@ def main():
                     )
 
             # Save logdist measurements
-            logdist_output_filepath = os.path.join(ROOT_PATH, f'experiments/experiment_009_logdist_pv_model/{survey}.csv')
+            logdist_output_filepath = f"/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_026_fix_abc_v2/logdist/{survey.lower()}.csv"
             df.to_csv(logdist_output_filepath, index=False)
 
         logger.info('Fitting log-distance ratios successful!')

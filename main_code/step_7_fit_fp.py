@@ -291,40 +291,7 @@ def generate_corner_plot() -> None:
                     ax.axhline(prev_vals_lamost[i], color='blue', ls='--', alpha=0.5)
 
     g.export(LIKELIHOOD_CORNERPLOT_IMG_FILEPATH, dpi=300)
-
-def calculate_fp_scatter() -> None:
-    results = []
-    for survey in NEW_SURVEY_LIST:
-        df = pd.read_csv(OUTLIER_REJECT_OUTPUT_FILEPATH[survey])
-        params = pd.read_csv(FP_FIT_OUTPUT_FILEPATH, index_col=0).loc[survey].to_dict()
-        a = params.get("a")
-        b = params.get("b")
-        sigma_1 = params.get("s1")
-        
-        # Calculate typical scatter in s
-        err_spectro = df['es'].median()
-        
-        # Calculate the combined photometric error
-        e_XFP = np.sqrt(df['er']**2 + (b * df['ei'])**2 + 2 * (-1) * np.absolute(b * df['er'] * df['ei']))
-        err_photo = np.median(e_XFP)
-        
-        # Calculate the total intrinsic error in r
-        sigma_r_int = sigma_1 * np.sqrt(1 + a**2 + b**2)
-        
-        # Calculate the total typical scatter in r
-        r_scatter = np.sqrt((a * err_spectro)**2 + err_photo**2 + sigma_r_int**2)
-        
-        # Save everything in a dictionary
-        scatter_dict = {
-            "eps_s": err_spectro,
-            "eps_photo": err_photo,
-            "sigma_r_int": sigma_r_int,
-            "r_scatter": r_scatter
-        }
-        results.append(scatter_dict)
-        
-    df = pd.DataFrame(results, index=NEW_SURVEY_LIST).round(decimals=4)
-    df.to_csv(FP_SCATTER_FILEPATH, index=True)
+    
 
 def main():
     try:
@@ -396,9 +363,6 @@ def main():
         FP_columns = ['a', 'b', 'c', 'rmean', 'smean', 'imean', 's1', 's2', 's3']
         df = pd.DataFrame(FP_params, columns=FP_columns, index=NEW_SURVEY_LIST)
         df.to_csv(FP_FIT_OUTPUT_FILEPATH)
-
-        logger.info("Calculating the FP scatter...")
-        calculate_fp_scatter()
 
         logger.info(f'Fitting the Fundamental Plane successful!')
     except Exception as e:

@@ -1,0 +1,1 @@
+Matthew's intended method of fixing abc -> not using combined sample, but fitting a common abc and separate centroids and sigmas simultaneously.

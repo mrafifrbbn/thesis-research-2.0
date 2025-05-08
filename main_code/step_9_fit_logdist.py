@@ -71,6 +71,8 @@ def fit_logdist(
     d_H = np.outer(10.0**(-dbins), dz_cluster)
     lmin = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_high) / 5.0
     lmax = (SOLAR_MAGNITUDE['j'] + 5.0 * np.log10(1.0 + df["zhelio"].to_numpy()) + df["kcor_j"].to_numpy() + df["extinction_j"].to_numpy() + 10.0 - 2.5 * np.log10(2.0 * math.pi) + 5.0 * np.log10(d_H) - mag_low) / 5.0
+    
+    # Calculate negative of log likelihood
     loglike = FP_func(FPparams, dbins, df["z_cmb"].to_numpy(), df["r"].to_numpy(), df["s"].to_numpy(), df["i"].to_numpy(), df["er"].to_numpy(), df["es"].to_numpy(), df["ei"].to_numpy(), np.ones(len(df)), smin, df["lmin"].to_numpy(), df["lmax"].to_numpy(), df["C_m"].to_numpy(), sumgals=False, use_full_fn=use_full_fn)
     
     # Calculate full FN
@@ -105,12 +107,14 @@ def fit_logdist(
     df[f"logdist_mean_{FPmethod.lower()}"] = mean
     df[f"logdist_std_{FPmethod.lower()}"] = err
     df[f"logdist_alpha_{FPmethod.lower()}"] = alpha
+    df[f"logdist_loc_{FPmethod.lower()}"] = loc
+    df[f"logdist_scale_{FPmethod.lower()}"] = scale
 
     # Transpose the PDF and return to linear unit
     y = np.exp(logP_dist.T)
     # Save the posterior distributions
     if save_posterior:
-        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/{survey.lower()}_posterior_{FPmethod.lower()}_fp.npy')
+        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/{survey.lower()}_posterior.npy')
         np.save(logdist_posterior_filepath, y)
 
     # Find mean and standard deviation of the distribution using curve_fit
@@ -144,7 +148,7 @@ def fit_logdist(
     df[f"logdist_obs_err_{FPmethod.lower()}"] = np.sqrt(np.array(logdist_std)**2 - logdist_int_err**2)
 
     # Calculate logdist fit's goodness-of-fit
-    df[f'logdist_chisq_{FPmethod.lower()}'] = chisq
+    df[f'logdist_fit_chisq_{FPmethod.lower()}'] = chisq
     df[f'logdist_fit_rmse_{FPmethod.lower()}'] = rmse
     
     return df

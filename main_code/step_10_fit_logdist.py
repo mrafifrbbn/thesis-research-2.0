@@ -153,6 +153,7 @@ def fit_logdist(
     
     return df
 
+
 def compare_cf_vs_formula() -> None:
     """
     This function compares the mean and std obtained using analytical formula and the one obtained from scipy's curve_fit.
@@ -172,6 +173,7 @@ def compare_cf_vs_formula() -> None:
         ax2.set_xlabel('Standard deviation from formula', size=14)
 
         plt.savefig(CURVEFIT_COMPARISON_IMG_FILEPATH[survey], dpi=300)
+
 
 def plot_best_worst_posterior() -> None:
     """
@@ -262,12 +264,6 @@ def main():
             # Save logdist measurements
             logdist_output_filepath = LOGDIST_OUTPUT_FILEPATH[survey]
             df.to_csv(logdist_output_filepath, index=False)
-
-        # logger.info('Comparing Gaussian curve_fit vs skew-normal...')
-        # compare_cf_vs_formula()
-        
-        # logger.info('Plotting the best and worst posterior distributions...')
-        # plot_best_worst_posterior()
 
         logger.info('Fitting log-distance ratios successful!')
     except Exception as e:

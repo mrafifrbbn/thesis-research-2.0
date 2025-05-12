@@ -23,7 +23,7 @@ from main_code.utils.constants import *
 from main_code.utils.functions import gaus
 from main_code.utils.CosmoFunc import *
 from main_code.utils.filepaths import (
-    OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS,
+    OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
     FP_FIT_ABC_FIXED_FILEPATH
 )
@@ -196,7 +196,7 @@ def main():
         for survey in SURVEY_LIST:
             print(survey)
             # Get input filename (outlier-rejected sample)
-            input_filepath = OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS[survey]
+            input_filepath = OUTLIER_REJECT_FP_SAMPLE_FILEPATHS[survey]
             df = pd.read_csv(input_filepath)
             
             # Survey's veldisp limit

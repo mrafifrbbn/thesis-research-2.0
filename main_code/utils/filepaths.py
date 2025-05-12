@@ -66,12 +66,12 @@ OUTLIER_REJECT_FP_SAMPLE_FILEPATHS = {
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'data/foundation/fp_individual_outlier_rejects/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/all_combined.csv')
 }
 
-# Outlier-rejected FP sample filepaths (abc-fixed method)
-OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS = {
-    '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs.csv'),
-    'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss.csv'),
-    'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost.csv')
-}
+# # Outlier-rejected FP sample filepaths (abc-fixed method)
+# OUTLIER_REJECT_FP_SAMPLE_ABC_FIXED_FILEPATHS = {
+#     '6dFGS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs.csv'),
+#     'SDSS': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss.csv'),
+#     'LAMOST': os.path.join(ROOT_PATH, f'data/foundation/fp_sample_final/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost.csv')
+# }
 
 # FP fits filepath
 FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/fp_fits_individual.csv')
@@ -90,11 +90,10 @@ MCMC_CHAIN_FILEPATHS = {
 }
 
 # FP fits MCMC chain filepaths
-MCMC_CHAIN_ABC_FIXED_FILEPATHS = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_abc_fixed_chain.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_abc_fixed_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost_abc_fixed_chain.npy')
-}
+MCMC_CHAIN_ABC_FIXED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed_chain.npy')
+
+# FP fits MCMC chain filepaths
+MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed_chain_cleaned.npy')
 
 # FP fits likelihood corner plot filepath
 FP_FIT_LIKELIHOOD_CORNERPLOT_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/three_surveys_likelihood.png')

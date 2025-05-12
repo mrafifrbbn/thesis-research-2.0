@@ -168,11 +168,12 @@ def likelihood_function(params, df_6df, df_sdss, df_lamost, smin):
 
     # The common parameters: a, b, and c
     a, b, c = params[0], params[1], params[2]
+    sigma2, sigma3 = params[12], params[13]
 
     # Each survey's FP
-    smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df = params[3], params[4], params[5], params[6], params[7]
-    smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss = params[8], params[9], params[10], params[11], params[12]
-    smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost = params[13], params[14], params[15], params[16], params[17]
+    smean_6df, imean_6df, sigma1_6df = params[3], params[4], params[5]
+    smean_sdss, imean_sdss, sigma1_sdss = params[6], params[7], params[8]
+    smean_lamost, imean_lamost, sigma1_lamost = params[9], params[10], params[11]
 
     # Calculate rmean
     rmean_6df = c + a * smean_6df + b * imean_6df
@@ -180,9 +181,9 @@ def likelihood_function(params, df_6df, df_sdss, df_lamost, smin):
     rmean_lamost = c + a * smean_lamost + b * imean_lamost
 
     # Create arrays of FP parameters
-    fp_params_6df = np.array([a, b, rmean_6df, smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df])
-    fp_params_sdss = np.array([a, b, rmean_sdss, smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss])
-    fp_params_lamost = np.array([a, b, rmean_lamost, smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost])
+    fp_params_6df = np.array([a, b, rmean_6df, smean_6df, imean_6df, sigma1_6df, sigma2, sigma3])
+    fp_params_sdss = np.array([a, b, rmean_sdss, smean_sdss, imean_sdss, sigma1_sdss, sigma2, sigma3])
+    fp_params_lamost = np.array([a, b, rmean_lamost, smean_lamost, imean_lamost, sigma1_lamost, sigma2, sigma3])
 
     # Calculate (negative of) the likelihood for each survey
     likelihood_6df = FP_func(fp_params_6df, df_6df, smin, True, False)
@@ -203,9 +204,10 @@ def sample_likelihood(dfs: List[pd.DataFrame],
 
         # Unpack parameters
         a, b, c = theta[0], theta[1], theta[2]
-        smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df = theta[3], theta[4], theta[5], theta[6], theta[7]
-        smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss = theta[8], theta[9], theta[10], theta[11], theta[12]
-        smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost = theta[13], theta[14], theta[15], theta[16], theta[17]
+        smean_6df, imean_6df, sigma1_6df = theta[3], theta[4], theta[5]
+        smean_sdss, imean_sdss, sigma1_sdss = theta[6], theta[7], theta[8]
+        smean_lamost, imean_lamost, sigma1_lamost = theta[9], theta[10], theta[11]
+        sigma2, sigma3 = theta[12], theta[13]
 
         # The range of the FP parameters' values
         avals, bvals, cvals = param_boundaries[0], param_boundaries[1], param_boundaries[2]
@@ -213,12 +215,10 @@ def sample_likelihood(dfs: List[pd.DataFrame],
         s1vals, s2vals, s3vals = param_boundaries[5], param_boundaries[6], param_boundaries[7]
 
         if (avals[0] < a < avals[1]) and (bvals[0] < b < bvals[1]) and (cvals[0] < c < cvals[1]) \
-            and (svals[0] < smean_6df < svals[1]) and (ivals[0] < imean_6df < ivals[1]) \
-            and (s1vals[0] < sigma1_6df < s1vals[1]) and (s2vals[0] < sigma2_6df < s2vals[1]) and (s3vals[0] < sigma3_6df < s3vals[1]) \
-            and (svals[0] < smean_sdss < svals[1]) and (ivals[0] < imean_sdss < ivals[1]) \
-            and (s1vals[0] < sigma1_sdss < s1vals[1]) and (s2vals[0] < sigma2_sdss < s2vals[1]) and (s3vals[0] < sigma3_sdss < s3vals[1]) \
-            and (svals[0] < smean_lamost < svals[1]) and (ivals[0] < imean_lamost < ivals[1]) \
-            and (s1vals[0] < sigma1_lamost < s1vals[1]) and (s2vals[0] < sigma2_lamost < s2vals[1]) and (s3vals[0] < sigma3_lamost < s3vals[1]):
+            and (s2vals[0] < sigma2 < s2vals[1]) and (s3vals[0] < sigma3 < s3vals[1]) \
+            and (svals[0] < smean_6df < svals[1]) and (ivals[0] < imean_6df < ivals[1]) and (s1vals[0] < sigma1_6df < s1vals[1]) \
+            and (svals[0] < smean_sdss < svals[1]) and (ivals[0] < imean_sdss < ivals[1]) and (s1vals[0] < sigma1_sdss < s1vals[1]) \
+            and (svals[0] < smean_lamost < svals[1]) and (ivals[0] < imean_lamost < ivals[1]) and (s1vals[0] < sigma1_lamost < s1vals[1]):
             return 0.0
         else:
             return -np.inf
@@ -242,18 +242,19 @@ def sample_likelihood(dfs: List[pd.DataFrame],
     fp_individual = pd.read_csv(filepath, index_col=0)
 
     # Unpack initial guesses
-    a, b, c = fp_individual.loc["ALL_COMBINED"][["a", "b", "c"]]
-    smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df = fp_individual.loc["6dFGS"][["smean", "imean", "s1", "s2", "s3"]]
-    smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss = fp_individual.loc["SDSS"][["smean", "imean", "s1", "s2", "s3"]]
-    smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost = fp_individual.loc["LAMOST"][["smean", "imean", "s1", "s2", "s3"]]
+    a, b, c, sigma2, sigma3 = fp_individual.loc["ALL_COMBINED"][["a", "b", "c", "s2", "s3"]]
+    smean_6df, imean_6df, sigma1_6df = fp_individual.loc["6dFGS"][["smean", "imean", "s1"]]
+    smean_sdss, imean_sdss, sigma1_sdss = fp_individual.loc["SDSS"][["smean", "imean", "s1"]]
+    smean_lamost, imean_lamost, sigma1_lamost = fp_individual.loc["LAMOST"][["smean", "imean", "s1"]]
 
     # Pack initial guesses as an array
     FP_params = np.array([
         a, b, c,
-        smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df,
-        smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss,
-        smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost
-    ])
+        smean_6df, imean_6df, sigma1_6df,
+        smean_sdss, imean_sdss, sigma1_sdss,
+        smean_lamost, imean_lamost, sigma1_lamost,
+        sigma2, sigma3
+        ])
 
     # Specify the initial guess, the number of walkers, and dimensions
     pos = FP_params + 1e-4 * np.random.randn(2 * len(FP_params), len(FP_params))
@@ -327,7 +328,7 @@ def main():
             dfs.append(df)
 
         logger.info(f"Sampling 18-parameters FP likelihood.")
-        chain_output_filepath = MCMC_CHAIN_ABC_FIXED_FILEPATH
+        chain_output_filepath = "/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_027_fp_fits_other_models/vary_centroid_only/chain.npy"
         create_parent_folder(chain_output_filepath)
         params_mean = sample_likelihood(
             dfs=dfs,

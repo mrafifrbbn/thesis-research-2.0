@@ -74,26 +74,31 @@ OUTLIER_REJECT_FP_SAMPLE_FILEPATHS = {
 # }
 
 # FP fits filepath
-FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/fp_fits_individual.csv')
+FP_FIT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/fp_fits_individual.csv')
 
 # FP fits filepath
-FP_FIT_ABC_FIXED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/fp_fits_abc_fixed.csv')
+FP_FIT_ABC_FIXED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/fp_fits_abc_fixed.csv')
 
 # FP fits MCMC chain filepaths
 MCMC_CHAIN_FILEPATHS = {
-    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_individual_chain.npy'),
-    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_individual_chain.npy'),
-    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/lamost_individual_chain.npy'),
-    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/sdss_lamost_individual_chain.npy'),
-    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/6dfgs_sdss_individual_chain.npy'),
-    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/all_combined_individual_chain.npy')
+    '6dFGS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/6dfgs_individual_chain.npy'),
+    'SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/sdss_individual_chain.npy'),
+    'LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/lamost_individual_chain.npy'),
+    'SDSS_LAMOST': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/sdss_lamost_individual_chain.npy'),
+    '6dFGS_SDSS': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/6dfgs_sdss_individual_chain.npy'),
+    'ALL_COMBINED': os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/individual/all_combined_individual_chain.npy')
 }
 
 # FP fits MCMC chain filepaths
-MCMC_CHAIN_ABC_FIXED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed_chain.npy')
+MCMC_CHAIN_ABC_FIXED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/abc_fixed_chain.npy')
 
 # FP fits MCMC chain filepaths
-MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed_chain_cleaned.npy')
+MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATHS = {
+    "FULL": os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/abc_fixed_chain_cleaned.npy'),
+    "6dFGS": os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/6dfgs_abc_fixed_chain.npy'),
+    "SDSS": os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/sdss_abc_fixed_chain.npy'),
+    "LAMOST": os.path.join(ROOT_PATH, f'artifacts/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/abc_fixed/lamost_abc_fixed_chain.npy'),
+}
 
 # FP fits likelihood corner plot filepath
 FP_FIT_LIKELIHOOD_CORNERPLOT_FILEPATH = os.path.join(ROOT_PATH, f'img/fp_fit/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/three_surveys_likelihood.png')

@@ -15,7 +15,7 @@ from main_code.utils.filepaths import (
     OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_ABC_FIXED_FILEPATH,
     MCMC_CHAIN_ABC_FIXED_FILEPATH,
-    MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATH,
+    MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATHS,
     FP_FIT_TYPICAL_SCATTER_FILEPATH
 )
 from main_code.utils.logging_config import get_logger
@@ -44,7 +44,27 @@ def clean_mcmc_chain(
     params_clean = params[burn_in:, :]
 
     # Save the cleaned chain
-    np.save(clean_chain_filepath, params_clean)
+    np.save(clean_chain_filepath["FULL"], params_clean)
+
+    # Unpack the chain and save for each survey
+    params = params_clean.T
+    a, b, c = params[0], params[1], params[2]
+    smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df = params[3], params[4], params[5], params[6], params[7]
+    smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss = params[8], params[9], params[10], params[11], params[12]
+    smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost = params[13], params[14], params[15], params[16], params[17]
+
+    rmean_6df = c + a * smean_6df + b * imean_6df
+    rmean_sdss = c + a * smean_sdss + b * imean_sdss
+    rmean_lamost = c + a * smean_lamost + b * imean_lamost
+
+    params_6df = np.array([a, b, c, rmean_6df, smean_6df, imean_6df, sigma1_6df, sigma2_6df, sigma3_6df]).T
+    params_sdss = np.array([a, b, c, rmean_sdss, smean_sdss, imean_sdss, sigma1_sdss, sigma2_sdss, sigma3_sdss]).T
+    params_lamost = np.array([a, b, c, rmean_lamost, smean_lamost, imean_lamost, sigma1_lamost, sigma2_lamost, sigma3_lamost]).T
+
+    # Save
+    np.save(clean_chain_filepath["6dFGS"], params_6df)
+    np.save(clean_chain_filepath["SDSS"], params_sdss)
+    np.save(clean_chain_filepath["LAMOST"], params_lamost)
 
     return
     
@@ -142,13 +162,13 @@ def main():
         clean_mcmc_chain(
             raw_chain_filepath=MCMC_CHAIN_ABC_FIXED_FILEPATH,
             burn_in=BURN_IN,
-            clean_chain_filepath=MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATH
+            clean_chain_filepath=MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATHS
         )
 
         # 2. Calculate FP fits estimates (mean) from MCMC chain
         logger.info("Calculating mean of the chains...")
         fp_fit_summary(
-            chain_filepath=MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATH,
+            chain_filepath=MCMC_CHAIN_ABC_FIXED_CLEANED_FILEPATHS["FULL"],
             fp_fits_filepath=FP_FIT_ABC_FIXED_FILEPATH
         )
 

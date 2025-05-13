@@ -328,7 +328,7 @@ def main():
             dfs.append(df)
 
         logger.info(f"Sampling 18-parameters FP likelihood.")
-        chain_output_filepath = "/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_027_fp_fits_other_models/vary_centroid_only/chain.npy"
+        chain_output_filepath = "/Users/mrafifrbbn/Documents/thesis/thesis-research-2.0/experiments/experiment_027_fp_fits_other_models/vary_centroid_sigma1/chain.npy"
         create_parent_folder(chain_output_filepath)
         params_mean = sample_likelihood(
             dfs=dfs,

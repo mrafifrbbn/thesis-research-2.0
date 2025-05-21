@@ -1,0 +1,1 @@
+Experiment to fit two other FP models: common-abcs1 and common-abcs1s2s3. Need these to add to the AIC & BIC table

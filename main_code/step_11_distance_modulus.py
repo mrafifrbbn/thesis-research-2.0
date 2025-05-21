@@ -15,6 +15,9 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 from main_code.utils.constants import *
 from main_code.utils.CosmoFunc import *
 from main_code.utils.logging_config import get_logger
+from main_code.utils.filepaths import (
+    LOGDIST_OUTPUT_FILEPATH
+)
 
 SMIN_SETTING = int(os.environ.get('SMIN_SETTING'))
 FP_FIT_METHOD = int(os.environ.get('FP_FIT_METHOD'))
@@ -24,6 +27,9 @@ USE_FULL_FN = True if FP_FIT_METHOD == 0 else False
 
 # Create logging instance
 logger = get_logger('fit_logdist')
+
+# Change Hubble constant here
+H0 = 74.6
 
 id_mapper = {
     "6dFGS": "_6dFGS",
@@ -108,63 +114,65 @@ def calculate_group_average(
 
 def main():
     try:
-        logger.info(f"{'=' * 50}")
+        logger.info(f"{'=' * 20} Calculating distance modulus using H0 = {H0} km/s/Mpc {'=' * 20}")
 
         for survey in SURVEY_LIST:
             # Load data
-            filepath = os.path.join(ROOT_PATH, f"data/foundation/logdist/smin_setting_1/fp_fit_method_0/{survey.lower()}.csv")
+            filepath = LOGDIST_OUTPUT_FILEPATH[survey]
             df = pd.read_csv(filepath)
 
-            # Create new columns for logdists from individual and combined FP
-            df["logdist_individual_fp"] = df[f"logdist_{survey.lower()}"]
-            df["logdist_err_individual_fp"] = df[f"logdist_err_{survey.lower()}"]
-
-            df["logdist_combined_fp"] = df[f"logdist_all_combined"]
-            df["logdist_err_combined_fp"] = df[f"logdist_err_all_combined"]
+            # Calculate distance modulus using Logdist from common-abc FP
+            logger.info("Calculating distance modulus using logdist from the common-abc FP")
+            df["DM_common_abc"], df["eDM_common_abc"] = calculate_distance_modulus(df["z_dist_est"].to_numpy(), df["zhelio"].to_numpy(), df[f"logdist_common_abc"].to_numpy(), df[f"logdist_err_common_abc"].to_numpy(), H0=H0)
 
             # Calculate distance modulus using Logdist from individual FP
-            logger.info("Calculating distance modulus using logdist from each survey's individual FP")
-            df["DM_individual_fp"], df["eDM_individual_fp"] = calculate_distance_modulus(df["z_dist_est"].to_numpy(), df["zhelio"].to_numpy(), df[f"logdist_{survey.lower()}"].to_numpy(), df[f"logdist_err_{survey.lower()}"].to_numpy())
+            logger.info("Calculating distance modulus using logdist from survey's individual FP")
+            df["DM_individual"], df["eDM_individual"] = calculate_distance_modulus(df["z_dist_est"].to_numpy(), df["zhelio"].to_numpy(), df[f"logdist_individual"].to_numpy(), df[f"logdist_err_individual"].to_numpy(), H0=H0)
 
-            logger.info("Calculating distance modulus using logdist from the combined FP")
-            df["DM_combined_fp"], df["eDM_combined_fp"] = calculate_distance_modulus(df["z_dist_est"].to_numpy(), df["zhelio"].to_numpy(), df[f"logdist_all_combined"].to_numpy(), df[f"logdist_err_all_combined"].to_numpy())
-
+            # Calculate distance modulus using Logdist from combined FP
+            logger.info("Calculating distance modulus using logdist from survey's individual FP")
+            df["DM_combined"], df["eDM_combined"] = calculate_distance_modulus(df["z_dist_est"].to_numpy(), df["zhelio"].to_numpy(), df[f"logdist_combined"].to_numpy(), df[f"logdist_err_combined"].to_numpy(), H0=H0)
 
             # Remove field galaxies
             df_group = df.copy()
             df_group = df_group[~(df_group["Group"].isin([-1, 0]))]
 
-            for method in ["individual", "combined"]:
+            # Iterate over the methods: individual and common-abc
+            for method in ["individual", "common_abc", "combined"]:
                 # Calculate group-averaged distance modulus
                 df_avg = calculate_group_average(
                     df=df_group,
                     group_id_col="Group",
-                    DM_src_col=f"DM_{method}_fp",
-                    eDM_src_col=f"eDM_{method}_fp",
-                    avg_DM_dest_col=f"group_DM_{method}_fp",
-                    avg_eDM_dest_col=f"group_eDM_{method}_fp"
+                    DM_src_col=f"DM_{method}",
+                    eDM_src_col=f"eDM_{method}",
+                    avg_DM_dest_col=f"group_DM_{method}",
+                    avg_eDM_dest_col=f"group_eDM_{method}"
                 )
 
                 # Join back to original data
                 df = df.merge(df_avg, on="Group", how="left")
 
                 # Use individual measurements for field galaxies
-                df[f"group_DM_{method}_fp"] = df[f"group_DM_{method}_fp"].fillna(df[f"DM_{method}_fp"])
-                df[f"group_eDM_{method}_fp"] = df[f"group_eDM_{method}_fp"].fillna(df[f"eDM_{method}_fp"])
+                df[f"group_DM_{method}"] = df[f"group_DM_{method}"].fillna(df[f"DM_{method}"])
+                df[f"group_eDM_{method}"] = df[f"group_eDM_{method}"].fillna(df[f"eDM_{method}"])
 
             # Select relevant columns
             df = df[[
                 'tmass', id_mapper[survey], 'ra', 'dec', 'zhelio', 'z_cmb', 'z_dist_est',
                 'j_m_ext', 'extinction_j', 'kcor_j', 'r', 'er', 's', 'es', 'i', 'ei',
-                'Group', 'Nr', 'logdist_individual_fp', 'logdist_err_individual_fp',
-                'logdist_combined_fp', 'logdist_err_combined_fp', 'DM_individual_fp', 'eDM_individual_fp',
-                'DM_combined_fp', 'eDM_combined_fp', 'group_DM_individual_fp',
-                'group_eDM_individual_fp', 'group_DM_combined_fp', 'group_eDM_combined_fp'
-            ]]
+                'Group', 'Nr', 'logdist_individual', 'logdist_err_individual',
+                'logdist_common_abc', 'logdist_err_common_abc',
+                'DM_common_abc', 'eDM_common_abc', 'group_DM_common_abc', 'group_eDM_common_abc',
+                'DM_individual', 'eDM_individual', 'group_DM_individual', 'group_eDM_individual',
+                'DM_combined', 'eDM_combined', 'group_DM_combined', 'group_eDM_combined'
+            ]].rename({id_mapper[survey]: "survey_id"}, axis=1)
 
             # Save output data
+            logger.info("Saving output files...")
             filepath = os.path.join(ROOT_PATH, f"data/foundation/distance_modulus/{survey.lower()}.csv")
             df.to_csv(filepath, index=False)
+
+            logger.info("Calculating distance modulus successful!")
             
     except Exception as e:
         logger.error(f'Calculating distance modulus failed. Reason: {e}.')

@@ -225,7 +225,7 @@ def main():
         fp_methods_dict = {
             "individual": {},
             "combined": {},
-            "abc_fixed": {}
+            "common_abc": {}
         }
         # 1. Individual and combined FP
         fp_params = pd.read_csv(FP_FIT_FILEPATH, index_col=0)
@@ -236,7 +236,7 @@ def main():
         # 2. abc-fixed FP
         fp_params = pd.read_csv(FP_FIT_ABC_FIXED_FILEPATH, index_col=0)
         for survey in SURVEY_LIST:
-            fp_methods_dict["abc_fixed"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
+            fp_methods_dict["common_abc"][survey] = fp_params.loc[survey][fp_base_params].to_numpy()
 
         # Iterate for all sample
         for survey in SURVEY_LIST:
@@ -270,5 +270,5 @@ def main():
         logger.error(f'Fitting log-distance ratios failed. Reason: {e}.', exc_info=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

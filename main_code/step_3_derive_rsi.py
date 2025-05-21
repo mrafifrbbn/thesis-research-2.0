@@ -1,19 +1,26 @@
 import os
+import sys
 import time
 import numpy as np
 import pandas as pd
 from scipy import interpolate
+
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
+if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
 from astropy.coordinates import SkyCoord
 from dustmaps.sfd import SFDQuery
 from dustmaps.config import config
 config['data_dir'] = os.path.join(ROOT_PATH, 'etc/dustmaps')
 
-from main_code.utils.filepaths import *
+from main_code.utils.filepaths import (
+    SPECTROPHOTO_FILEPATHS,
+    RSI_DERIVED_FILEPATHS,
+    H22_FILEPATH
+)
 from utils.constants import *
 from utils.logging_config import get_logger
 from utils.helio_cmb import perform_corr
@@ -50,8 +57,41 @@ SPECTROSCOPY_CONFIG = {
 
 # File paths
 SPECTROPHOTO_FILEPATHS = SPECTROPHOTO_FILEPATHS
-
 OUTPUT_FILEPATHS = RSI_DERIVED_FILEPATHS
+
+
+def get_cmb_group_redshift(survey: str, df=pd.DataFrame) -> pd.DataFrame:
+
+    # Load Cullan's data
+    df_h22 = pd.read_csv(H22_FILEPATH)[["objid", "zcmb_group"]]
+    df_h22["objid"] = df_h22["objid"].apply(lambda x: "SDSS" + str(x))
+
+    # For SDSS, match directly
+    if survey == "SDSS":
+        
+        df = df.merge(df_h22, on="objid", how="left")
+        
+        df["z_dist_est"] = df["zcmb_group"]
+
+    # For LAMOST, match H22 with SDSS first
+    elif survey == "LAMOST":
+
+        # Load SDSS data, combine with H22
+        df_sdss = pd.read_csv(SPECTROPHOTO_FILEPATHS["SDSS"])[["tmass", "objid"]]
+        df_sdss["objid"] = df_sdss["objid"].apply(lambda x: "SDSS" + str(x))
+        df_ = df_sdss.merge(df_h22, on="objid", how="left")
+
+        # Use Cullan's CMB group redshift if available, use Tempel's if not
+        df = df.merge(df_, on="tmass", how="left")
+
+        # Priority: zcmb_group (from H22), zcl from Tempel et al. (and group is true), and z_cmb
+        df['z_dist_est'] = np.where(~df['zcmb_group'].isna(), df['zcmb_group'], np.where((~df["zcl"].isna()) & (df["tempel_counterpart"] == True), df["zcl"], df["z_cmb"]))
+
+    df['Group'] = np.where(df['tempel_counterpart'] == True, df['Group'], -1)
+    df['Nr'] = np.where(df['tempel_counterpart'] == True, df['Nr'], 1)
+
+    return df
+
 
 def derive_rsi() -> None:
     '''
@@ -114,12 +154,12 @@ def derive_rsi() -> None:
         
         # Step 4: use group/cluster redshift for galaxies in group/cluster
         logger.info('Obtaining group/cluster mean redshift if available...')
-        if survey in ['SDSS', 'LAMOST']:
-            df['z_dist_est'] = np.where(df['tempel_counterpart'] == True, df['zcl'], df['z_cmb'])
-            df['Group'] = np.where(df['tempel_counterpart'] == True, df['Group'], -1)
-            df['Nr'] = np.where(df['tempel_counterpart'] == True, df['Nr'], 1)
+        if survey in ["SDSS", "LAMOST"]:
+            df = get_cmb_group_redshift(survey=survey, df=df)
         else:
             df['z_dist_est'] = np.where(df['cz_gr'] != 0., df['cz_gr'] / LIGHTSPEED, df['z_cmb'])
+            df['Group'] = np.where(df['Group'] != 0, df['Group'], -1)
+            df['Nr'] = np.where(df['Nr'] > 1, df['Nr'], 1)
 
         # Step 5: aperture size corrections for the velocity dispersions
         logger.info('Calculating aperture size-corrected velocity dispersions...')
@@ -188,7 +228,7 @@ def main() -> None:
         end = time.time()
         logger.info(f'Deriving r, s, i for the three surveys successful! Time elapsed = {round(end - start, 2)} s')
     except Exception as e:
-        logger.error(f'Deriving r, s, i failed. Reason: {e}.')
+        logger.error(f'Deriving r, s, i failed. Reason: {e}.', exc_info=True)
 
 if __name__ == '__main__':
     main()

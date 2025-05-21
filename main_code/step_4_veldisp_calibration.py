@@ -689,82 +689,85 @@ def apply_scalings(error_scalings: Dict[str, float], offsets: Dict[str, float]) 
     '''
     This function applies the error scalings and velocity dispersion offsets to the data.
     '''
+    for survey in SURVEY_LIST:
+        df = pd.read_csv(INPUT_FILEPATH[survey])
+        df['s_scaled'] = df['s'] - offsets[survey]
+        df['es_scaled'] = df['es'] * error_scalings[survey]
+        df.to_csv(OUTPUT_FILEPATH[survey], index=False)
+
+def main():
     try:
-        for survey in SURVEY_LIST:
-            df = pd.read_csv(INPUT_FILEPATH[survey])
-            df['s_scaled'] = df['s'] - offsets[survey]
-            df['es_scaled'] = df['es'] * error_scalings[survey]
-            df.to_csv(OUTPUT_FILEPATH[survey], index=False)
+        logger.info(f'Finding repeat measurements...')
+        start = time.time()
+        df = get_common_galaxies()
+        end = time.time()
+        logger.info(f'Finding repeat measurements successful! Time elapsed = {round(end - start, 2)} s.')
+
+        # Set the errors
+        k_6df = 1.0
+        k_sdss = 1.0
+        k_lamost = 1.0
+
+        method = ERROR_SCALING_METHODS[METHOD_NO]
+        if method == 'old_method':
+            logger.info(f'Finding error scalings using old method (vary k_lamost and k_sdss)')
+            start = time.time()
+            k_sdss, k_lamost = get_error_scaling_old_method(df, sigma_clip=3.5)
+            end = time.time()
+            logger.info(f'Finding error scalings using old method successful! Time elapsed = {round(end - start, 2)} s.')
+        elif method == 'sdss_fiducial':
+            logger.info(f'Finding 6dFGS and LAMOST error scalings by setting SDSS as the fiducial...')
+            start = time.time()
+            k_6df, k_lamost = get_error_scaling_one_fiducial(df, sigma_clip=3.5)
+            end = time.time()
+            logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
+        elif method == 'lamost_only':
+            logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS...')
+            start = time.time()
+            k_lamost_sdss_fid, k_lamost_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
+            k_lamost = k_lamost_sdss_fid
+            end = time.time()
+            logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
+        elif method == 'sdss_only':
+            logger.info(f'Finding SDSS error scaling by comparing with LAMOST...')
+            start = time.time()
+            k_sdss_lamost_fid, k_sdss_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
+            k_sdss = k_sdss_lamost_fid
+            end = time.time()
+            logger.info(f'Finding SDSS error scaling by comparing with LAMOST successful! Time elapsed = {round(end - start, 2)} s.')
+
+        # Save the scalings
+        scalings = np.array([[k_6df, k_sdss, k_lamost]])
+        VELDISP_SCALING_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/veldisp_calibration/scaling_{method}.csv')
+        pd.DataFrame(data=scalings, columns=['k_6df', 'k_sdss', 'k_lamost']).to_csv(VELDISP_SCALING_OUTPUT_FILEPATH, index=False)
+
+        # Calculate the error-weighted offsets
+        logger.info(f"Finding the velocity dispersion offset...")
+        totoffs = get_offset(k_6df, k_sdss, k_lamost, nboot=100)
+        off_6df = totoffs.loc[0, ['off_6df']].values[0]
+        off_sdss = totoffs.loc[0, ['off_sdss']].values[0]
+        off_lamost = totoffs.loc[0, ['off_lamost']].values[0]
+
+        logger.info(f"Generating the epsilon comparison plot...")
+        generate_comparison_plot(method, k_6df=k_6df, k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=3.5)
+        
+        logger.info(f"Applying the scalings...")
+        error_scalings = {
+            '6dFGS': k_6df,
+            'SDSS': k_sdss,
+            'LAMOST': k_lamost
+        }
+        offsets = {
+            '6dFGS': off_6df,
+            'SDSS': off_sdss,
+            'LAMOST': off_lamost
+        }
+        logger.info(f"Applying scalings. Error scaling: {error_scalings} | offsets: {offsets}")
+        apply_scalings(error_scalings, offsets)
+
+        logger.info("Velocity dispersion calibration successful!")
     except Exception as e:
-        logger.error(f'Applying scalings failed. Reason: {e}.')
-
-def main() -> None:
-    logger.info(f'Finding repeat measurements...')
-    start = time.time()
-    df = get_common_galaxies()
-    end = time.time()
-    logger.info(f'Finding repeat measurements successful! Time elapsed = {round(end - start, 2)} s.')
-
-    # Set the errors
-    k_6df = 1.0
-    k_sdss = 1.0
-    k_lamost = 1.0
-
-    method = ERROR_SCALING_METHODS[METHOD_NO]
-    if method == 'old_method':
-        logger.info(f'Finding error scalings using old method (vary k_lamost and k_sdss)')
-        start = time.time()
-        k_sdss, k_lamost = get_error_scaling_old_method(df, sigma_clip=3.5)
-        end = time.time()
-        logger.info(f'Finding error scalings using old method successful! Time elapsed = {round(end - start, 2)} s.')
-    elif method == 'sdss_fiducial':
-        logger.info(f'Finding 6dFGS and LAMOST error scalings by setting SDSS as the fiducial...')
-        start = time.time()
-        k_6df, k_lamost = get_error_scaling_one_fiducial(df, sigma_clip=3.5)
-        end = time.time()
-        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
-    elif method == 'lamost_only':
-        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS...')
-        start = time.time()
-        k_lamost_sdss_fid, k_lamost_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
-        k_lamost = k_lamost_sdss_fid
-        end = time.time()
-        logger.info(f'Finding LAMOST error scaling by comparing with SDSS and 6dFGS successful! Time elapsed = {round(end - start, 2)} s.')
-    elif method == 'sdss_only':
-        logger.info(f'Finding SDSS error scaling by comparing with LAMOST...')
-        start = time.time()
-        k_sdss_lamost_fid, k_sdss_6df_fid = get_error_scaling_lamost_only(df, sigma_clip=3.5)
-        k_sdss = k_sdss_lamost_fid
-        end = time.time()
-        logger.info(f'Finding SDSS error scaling by comparing with LAMOST successful! Time elapsed = {round(end - start, 2)} s.')
-
-    # Save the scalings
-    scalings = np.array([[k_6df, k_sdss, k_lamost]])
-    VELDISP_SCALING_OUTPUT_FILEPATH = os.path.join(ROOT_PATH, f'artifacts/veldisp_calibration/scaling_{method}.csv')
-    pd.DataFrame(data=scalings, columns=['k_6df', 'k_sdss', 'k_lamost']).to_csv(VELDISP_SCALING_OUTPUT_FILEPATH, index=False)
-
-    # Calculate the error-weighted offsets
-    logger.info(f"Finding the velocity dispersion offset...")
-    totoffs = get_offset(k_6df, k_sdss, k_lamost, nboot=100)
-    off_6df = totoffs.loc[0, ['off_6df']].values[0]
-    off_sdss = totoffs.loc[0, ['off_sdss']].values[0]
-    off_lamost = totoffs.loc[0, ['off_lamost']].values[0]
-
-    logger.info(f"Generating the epsilon comparison plot...")
-    generate_comparison_plot(method, k_6df=k_6df, k_sdss=k_sdss, k_lamost=k_lamost, off_6df=off_6df, off_lamost=off_lamost, sigma_clip=3.5)
-    
-    logger.info(f"Applying the scalings...")
-    error_scalings = {
-        '6dFGS': k_6df,
-        'SDSS': k_sdss,
-        'LAMOST': k_lamost
-    }
-    offsets = {
-        '6dFGS': off_6df,
-        'SDSS': off_sdss,
-        'LAMOST': off_lamost
-    }
-    apply_scalings(error_scalings, offsets)
+        logger.error("Velocity dispersion calibration failed.", exc_info=True)
 
 if __name__ == '__main__':
     main()

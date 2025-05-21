@@ -176,3 +176,6 @@ POSTERIOR_SKEWNESS_IMG_FILEPATH = {
     '6dFGS_SDSS': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/6dfgs_sdss_skewness.png'),
     'ALL_COMBINED': os.path.join(ROOT_PATH, f'img/logdist/smin_setting_{SMIN_SETTING}/all_combined_skewness.png')
 }
+
+# Cullan's FP data
+H22_FILEPATH = os.path.join(ROOT_PATH, "data/external/h22/cullan_logdist.csv")

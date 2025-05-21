@@ -47,8 +47,8 @@ SDSS_LAMOST_NOJRL_OUTPUT_FILEPATH = {
 
 # Supplementary data paths
 JRL_PHOTO_FILEPATH = os.path.join(ROOT_PATH, 'data/raw/r_e_jrl/combined/jhk_r_e.csv')
-TEMPEL_GAL_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss8/tempel_dr8gal.fits')
-TEMPEL_GROUP_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss8/tempel_dr8gr.fits')
+TEMPEL_GAL_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss12/individual.txt')
+TEMPEL_GROUP_FILEPATH = os.path.join(ROOT_PATH, 'data/external/tempel_group_sdss12/group.txt')
 
 def combine_6df_spectrophoto() -> None:
     '''
@@ -128,6 +128,7 @@ def combine_6df_spectrophoto() -> None:
     except Exception as e:
         logger.error(f"Combining 6dFGS spectroscopy and photometry data failed. Reason: {e}")
 
+
 def combine_sdss_lamost_spectrophoto() -> None:
     '''
     A function to combine the SDSS and LAMOST spectroscopy (veldisp), 2MASS photometry, John's GALFIT measurements, 
@@ -143,112 +144,120 @@ def combine_sdss_lamost_spectrophoto() -> None:
     8. Join SDSS/LAMOST-2MASS-JRL-Tempel on galaxy's ra and dec (Tempel does not provide SDSS objID)
     9. Save the table to data/preprocessed/spectrophoto
     '''
-    try:
-        for survey in ['SDSS', 'LAMOST']:
-            # Open spectroscopy data
-            req_cols = SDSS_LAMOST_SPECTRO_REQ_COLS[survey]
-            if survey=='SDSS':
-                df_spectro = pd.read_csv(SDSS_LAMOST_SPECTRO_FILEPATH[survey], delim_whitespace=True)[req_cols]
-            else:
-                with fits.open(SDSS_LAMOST_SPECTRO_FILEPATH[survey]) as hdul:
-                    df_spectro = Table(hdul[1].data).to_pandas()[req_cols]
-            logger.info(f'Original number of {survey.upper()} galaxies = {len(df_spectro)}')
+    for survey in ['SDSS', 'LAMOST']:
+        # Open spectroscopy data
+        req_cols = SDSS_LAMOST_SPECTRO_REQ_COLS[survey]
+        if survey=='SDSS':
+            df_spectro = pd.read_csv(SDSS_LAMOST_SPECTRO_FILEPATH[survey], delim_whitespace=True)[req_cols]
+        else:
+            with fits.open(SDSS_LAMOST_SPECTRO_FILEPATH[survey]) as hdul:
+                df_spectro = Table(hdul[1].data).to_pandas()[req_cols]
+        logger.info(f'Original number of {survey.upper()} galaxies = {len(df_spectro)}')
 
-            # Open the 2MASS data
-            req_cols = ['dist_x', 'ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
-                        'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'h_r_eff', 'k_r_eff']
-            df_2mass = pd.read_csv(SDSS_LAMOST_TMASS_FILEPATH[survey], low_memory=False)[req_cols]
+        # Open the 2MASS data
+        req_cols = ['dist_x', 'ra_01', 'dec_01', 'designation', 'glon', 'glat', 'j_ba', 'h_ba', 'k_ba', 
+                    'sup_ba', 'r_ext', 'j_m_ext', 'h_m_ext', 'k_m_ext', 'j_r_eff', 'h_r_eff', 'k_r_eff']
+        df_2mass = pd.read_csv(SDSS_LAMOST_TMASS_FILEPATH[survey], low_memory=False)[req_cols]
 
-            # Merge FP + 2MASS and drop measurements without photometry (designation is null)
-            logger.info(f"Merging {survey.upper()} spectroscopy with 2MASS photometry...")
-            df = df_spectro.merge(df_2mass, left_index=True, right_index=True)
-            df = df.dropna(subset='designation').rename({'designation': 'tmass', 'RA': 'ra', 'Dec': 'dec'}, axis=1)
-            # Drop rows with duplicated 2MASS Id, pick the one with the smaller dist_x
-            df = df.sort_values(by='dist_x', ascending=True)
-            df = df.drop_duplicates(subset='tmass')
-            # Rename 2MASS id column
-            df['tmass'] = '2MASXJ' + df['tmass']
-            logger.info(f"Remaining {survey.upper()} galaxies = {len(df)}")
+        # Merge FP + 2MASS and drop measurements without photometry (designation is null)
+        logger.info(f"Merging {survey.upper()} spectroscopy with 2MASS photometry...")
+        df = df_spectro.merge(df_2mass, left_index=True, right_index=True)
+        df = df.dropna(subset='designation').rename({'designation': 'tmass', 'RA': 'ra', 'Dec': 'dec'}, axis=1)
+        # Drop rows with duplicated 2MASS Id, pick the one with the smaller dist_x
+        df = df.sort_values(by='dist_x', ascending=True)
+        df = df.drop_duplicates(subset='tmass')
+        # Rename 2MASS id column
+        df['tmass'] = '2MASXJ' + df['tmass']
+        logger.info(f"Remaining {survey.upper()} galaxies = {len(df)}")
 
-            # Sanity test (check RAJ2000 DEJ2000 vs ra_01 dec_01)
-            max_delta_ra = np.absolute(max(df['ra'] - df['ra_01']))
-            max_delta_dec = np.absolute(max(df['dec'] - df['dec_01']))
-            tol_ = 0.001
-            logger.info(f'Max delta RA: {max_delta_ra}')
-            logger.info(f'Max delta DEC: {max_delta_dec}')
+        # Sanity test (check RAJ2000 DEJ2000 vs ra_01 dec_01)
+        max_delta_ra = np.absolute(max(df['ra'] - df['ra_01']))
+        max_delta_dec = np.absolute(max(df['dec'] - df['dec_01']))
+        tol_ = 0.001
+        logger.info(f'Max delta RA: {max_delta_ra}')
+        logger.info(f'Max delta DEC: {max_delta_dec}')
 
-            if (max_delta_ra > tol_) or (max_delta_dec > tol_):
-                logger.info('The two tables do not match.')
-                raise
-            else:
-                logger.info(f'The coordinates in {survey.upper()} and 2MASS response are consistent.')
-                df = df.drop(['ra_01', 'dec_01'], axis=1)
+        if (max_delta_ra > tol_) or (max_delta_dec > tol_):
+            logger.info('The two tables do not match.')
+            raise
+        else:
+            logger.info(f'The coordinates in {survey.upper()} and 2MASS response are consistent.')
+            df = df.drop(['ra_01', 'dec_01'], axis=1)
 
-            # Open John's measurements
-            req_cols = ['tmass', 'log_r_h_app_j', 'log_r_h_smodel_j', 'log_r_h_model_j', 'fit_ok_j', 'red_chi_j',
-                        'log_r_h_app_h', 'log_r_h_smodel_h', 'log_r_h_model_h', 'fit_ok_h',
-                        'log_r_h_app_k', 'log_r_h_smodel_k', 'log_r_h_model_k', 'fit_ok_k']
-            df_jrl = pd.read_csv(JRL_PHOTO_FILEPATH)[req_cols]
+        # Open John's measurements
+        req_cols = ['tmass', 'log_r_h_app_j', 'log_r_h_smodel_j', 'log_r_h_model_j', 'fit_ok_j', 'red_chi_j',
+                    'log_r_h_app_h', 'log_r_h_smodel_h', 'log_r_h_model_h', 'fit_ok_h',
+                    'log_r_h_app_k', 'log_r_h_smodel_k', 'log_r_h_model_k', 'fit_ok_k']
+        df_jrl = pd.read_csv(JRL_PHOTO_FILEPATH)[req_cols]
 
-            # Find galaxies without John's measurements
-            df_nomeasure = pd.merge(df, df_jrl, how='left', on='tmass', indicator=True).query('_merge == "left_only"')[['tmass']]
-            if len(df_nomeasure):
-                logger.info(f'Number of {survey.upper()} galaxies without Johns measurements = {len(df_nomeasure)}')
-                df_nomeasure.to_csv(SDSS_LAMOST_NOJRL_OUTPUT_FILEPATH[survey], index=False)
-            # Merge SDSS_Spectro+2MASS and JRL photometry
-            logger.info(f"Merging {survey.upper()}+2MASS with JRL photometry...")
-            df = df.merge(df_jrl, on='tmass')
-            logger.info(f'Remaining {survey.upper()} galaxies = {len(df)}')
+        # Find galaxies without John's measurements
+        df_nomeasure = pd.merge(df, df_jrl, how='left', on='tmass', indicator=True).query('_merge == "left_only"')[['tmass']]
+        if len(df_nomeasure):
+            logger.info(f'Number of {survey.upper()} galaxies without Johns measurements = {len(df_nomeasure)}')
+            df_nomeasure.to_csv(SDSS_LAMOST_NOJRL_OUTPUT_FILEPATH[survey], index=False)
+        # Merge SDSS_Spectro+2MASS and JRL photometry
+        logger.info(f"Merging {survey.upper()}+2MASS with JRL photometry...")
+        df = df.merge(df_jrl, on='tmass')
+        logger.info(f'Remaining {survey.upper()} galaxies = {len(df)}')
 
-            # Open cluster and group data
-            ## Individual galaxies data
-            req_cols = ['IDcl', 'RAJ2000', 'DEJ2000']
-            with fits.open(TEMPEL_GAL_FILEPATH) as hdul:
-                df_gal = Table(hdul[1].data).to_pandas()[req_cols].rename({'IDcl': 'Group'}, axis=1)
-            ## Group and cluster data
-            req_cols = ['IDcl', 'Ngal', 'zcl']
-            with fits.open(TEMPEL_GROUP_FILEPATH) as hdul:
-                df_gr = Table(hdul[1].data).to_pandas()[req_cols].rename({'IDcl': 'Group', 'Ngal': 'Nr'}, axis=1)
-            ## Merge the two tables
-            df_tempel = df_gal.merge(df_gr, on='Group', how='left')
+        # Open cluster and group data (Tempel et al. 2017)
+        df_gal = pd.read_csv(TEMPEL_GAL_FILEPATH, sep="\t")[["objID", "GroupID", "Ngal", "RAJ2000", "DEJ2000"]]
+        df_gal.rename({"objID": "objid", "Ngal": "Nr"}, axis=1, inplace=True)
+        df_group = pd.read_csv(TEMPEL_GROUP_FILEPATH, sep="\t")[["GroupID", "zcl"]]
+        df_tempel = df_gal.merge(df_group, on="GroupID", how="left").rename({"GroupID": "Group"}, axis=1)
 
-            # Crossmatch SDSS/LAMOST data with Tempel data based on individual galaxy RA and DEC
+        # For SDSS, use SDSS objid
+        logger.info(f'Joining {survey.upper()} data with Tempel group and cluster data...')
+        if survey == "SDSS":
+            df = df.merge(df_tempel[["objid", "Group", "Nr", "zcl"]], on="objid", how="left")
+            df["Group"].fillna(0, inplace=True)
+            df["Nr"].fillna(1, inplace=True)
+            df["tempel_counterpart"] = ~df["zcl"].isna()
+        # For LAMOST, sky cross-matching
+        elif survey == "LAMOST":
             coords_mydata = SkyCoord(ra=df['ra'].to_numpy() * u.deg, dec=df['dec'].to_numpy() * u.deg)
             coords_tempel = SkyCoord(ra=df_tempel['RAJ2000'].to_numpy() * u.deg, dec=df_tempel['DEJ2000'].to_numpy() * u.deg)
 
             idx, sep2d, _ = coords_mydata.match_to_catalog_sky(coords_tempel)
-            SEP_THRESH = 2.5
+            SEP_THRESH = 5.0
             is_counterpart = sep2d < SEP_THRESH * u.arcsec
 
             df['tempel_idx'] = idx
             df['tempel_counterpart'] = is_counterpart
 
-            logger.info(f'Joining {survey.upper()} data with Tempel group and cluster data...')
-            df = df.merge(df_tempel, left_on='tempel_idx', how='left', right_index=True).drop(['tempel_idx', 'RAJ2000', 'DEJ2000'], axis=1)
-            logger.info(f'{survey.upper()} galaxies that are part of a cluster: {len(df[df.tempel_counterpart==True])}')
+            df = df.merge(df_tempel[["objid", "Group", "Nr", "zcl"]], left_on='tempel_idx', how='left', right_index=True).drop(['tempel_idx'], axis=1)
 
-            # Save the resulting table
-            logger.info(f'Number of galaxies = {len(df)}. Number of unique galaxies = {df.tmass.nunique()}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')
-            df.to_csv(SDSS_LAMOST_OUTPUT_FILEPATH[survey], index=False)
+            df["Group"].fillna(0, inplace=True)
+            df["Nr"].fillna(1, inplace=True)
 
-    except Exception as e:
-        logger.error(f"Combining {survey.upper()} spectroscopy and photometry data failed. Reason: {e}")
+        logger.info(f'{survey.upper()} galaxies that are part of a cluster: {len(df[df.tempel_counterpart==True])}')
+
+        # Cast as integer
+        df["Group"] = df["Group"].astype(int)
+        df["Nr"] = df["Nr"].astype(int)
+
+        # Save the resulting table
+        logger.info(f'Number of galaxies = {len(df)}. Number of unique galaxies = {df.tmass.nunique()}. Saving the table to {SDSS_LAMOST_OUTPUT_FILEPATH[survey]}.')
+        df.to_csv(SDSS_LAMOST_OUTPUT_FILEPATH[survey], index=False)
     
 def main() -> None:
-    logger.info(f"{'='*50}")
-    logger.info('Combining 6dFGS data...')
-    start = time.time()
-    combine_6df_spectrophoto()
-    end = time.time()
-    logger.info(f'Combining 6dFGS data successful! Time elapsed = {round(end-start, 2)} s')
+    try:
+        logger.info(f"{'='*50}")
+        logger.info('Combining 6dFGS data...')
+        start = time.time()
+        combine_6df_spectrophoto()
+        end = time.time()
+        logger.info(f'Combining 6dFGS data successful! Time elapsed = {round(end-start, 2)} s')
 
-    logger.info('\n')
-    
-    logger.info('Combining SDSS and LAMOST data...')
-    start = time.time()
-    combine_sdss_lamost_spectrophoto()
-    end = time.time()
-    logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {round(end-start, 2)} s')
+        logger.info('\n')
+        
+        logger.info('Combining SDSS and LAMOST data...')
+        start = time.time()
+        combine_sdss_lamost_spectrophoto()
+        end = time.time()
+        logger.info(f'Combining SDSS and LAMOST data successful! Time elapsed = {round(end-start, 2)} s')
+    except Exception as e:
+        logger.error(f"Combining spectroscopy and photometry data failed. Reason: {e}", exc_info=True)
 
 if __name__ == '__main__':
     main()

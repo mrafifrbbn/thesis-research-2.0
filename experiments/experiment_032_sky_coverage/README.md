@@ -1,0 +1,1 @@
+Experiment to calculate the sky coverage (area in steradians) for each survey using Monte Carlo and dirty masking.

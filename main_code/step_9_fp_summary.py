@@ -130,9 +130,12 @@ def calculate_fp_scatter(
         
         # Calculate the total intrinsic error in r
         sigma_r_int = sigma_1 * np.sqrt(1 + a**2 + b**2)
+
+        # Calculate the observational error in r
+        sigma_r_obs = np.sqrt((a * err_spectro)**2 + err_photo**2)
         
         # Calculate the total typical scatter in r
-        r_scatter = np.sqrt((a * err_spectro)**2 + err_photo**2 + sigma_r_int**2)
+        r_scatter = np.sqrt(sigma_r_obs**2 + sigma_r_int**2)
         r_scatter_pct = np.log(10) * r_scatter * 100
         
         # Save everything in a dictionary
@@ -140,6 +143,7 @@ def calculate_fp_scatter(
             "eps_s": err_spectro,
             "eps_photo": err_photo,
             "sigma_r_int": sigma_r_int,
+            "sigma_r_obs": sigma_r_obs,
             "r_scatter": r_scatter,
             "r_scatter_pct": r_scatter_pct
         }

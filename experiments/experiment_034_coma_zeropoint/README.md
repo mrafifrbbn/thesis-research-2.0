@@ -1,0 +1,1 @@
+Experiment to set the zero-point of the entire dataset to Coma cluster (Coma cluster's logdist = 0)

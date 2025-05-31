@@ -22,6 +22,7 @@ from main_code.utils.filepaths import (
     OUTLIER_REJECT_FP_SAMPLE_FILEPATHS,
     FP_FIT_FILEPATH,
     FP_FIT_ABC_FIXED_FILEPATH,
+    FP_FIT_TYPICAL_SCATTER_FILEPATH,
     LOGDIST_POSTERIOR_OUTPUT_FILEPATH,
     LOGDIST_OUTPUT_FILEPATH,
     CURVEFIT_COMPARISON_IMG_FILEPATH,
@@ -141,11 +142,23 @@ def fit_logdist(
     df[f'logdist_{FPmethod.lower()}'] = logdist_mean
     df[f'logdist_err_{FPmethod.lower()}'] = logdist_std
 
-    # Calculate observational error
+    # Calculate observational error (subtract from intrinsic error)
     a, b, sigma1 = FPparams[0], FPparams[1], FPparams[5]
+
+    # Calculate logdist observational error from FP spectro and photo errors
+    e_XFP = np.sqrt(df['er']**2 + (b * df['ei'])**2 + 2 * (-1) * np.absolute(b * df['er'] * df['ei']))
+    err_photo = e_XFP
+    err_spectro = df['es']
+    sigma_r_obs = np.sqrt((a * err_spectro)**2 + err_photo**2)
+    typical_sigma_r_obs = np.median(sigma_r_obs)
+    df[f"logdist_obs_err_nominal_{FPmethod.lower()}"] = sigma_r_obs
+     
+    # Calculate logdist observational error by subtracting intrinsic error
     logdist_int_err = sigma1 * np.sqrt(1 + a**2 + b**2)
     df[f"logdist_int_err_{FPmethod.lower()}"] = logdist_int_err
-    df[f"logdist_obs_err_{FPmethod.lower()}"] = np.sqrt(np.array(logdist_std)**2 - logdist_int_err**2)
+    logdist_obs_err_subtract = np.sqrt(np.array(logdist_std)**2 - logdist_int_err**2)
+    df[f"logdist_obs_err_{FPmethod.lower()}"] = logdist_obs_err_subtract
+    df[f"logdist_obs_err_{FPmethod.lower()}"] = df[f"logdist_obs_err_{FPmethod.lower()}"]#.fillna(typical_sigma_r_obs)
 
     # Calculate logdist fit's goodness-of-fit
     df[f'logdist_fit_chisq_{FPmethod.lower()}'] = chisq

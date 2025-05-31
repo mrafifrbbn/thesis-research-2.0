@@ -2,12 +2,10 @@
 import os
 import sys
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 
-from scipy.interpolate import griddata
 import scipy.optimize as so
+from scipy.odr import ODR, Model, RealData
 
 from typing import List, Tuple
 
@@ -15,6 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT_PATH = os.environ.get('ROOT_PATH')
+
+# Create linear function
+def linear_func(x: np.array, m: float, c: float):
+    return m * x + c
 
 def create_parent_folder(full_abspath) -> None:
     if isinstance(full_abspath, dict):
@@ -232,3 +234,56 @@ def bin_data_error_weighting(x: np.array, y: np.array, yerr: np.array, xmin: flo
             continue
 
     return np.array(x_bin_), np.array(y_bin), np.array(y_bin_err), np.array(y_bin_stderr)
+
+
+def ODR_linear_fit(x, y, xerr=None, yerr=None, m_guess=1.0, b_guess=0.0, left_boundary=None, right_boundary=None):
+    """Helper function to fit a line with errors in both x and y axes.
+
+    Args:
+        x (): x data
+        y (_type_): y data
+        xerr (_type_, optional): error in x. Defaults to None.
+        yerr (_type_, optional): error in y. Defaults to None.
+        m_guess (float, optional): initial guess for the slope. Defaults to 1.0.
+        b_guess (float, optional): initial guess for the intercept. Defaults to 0.0.
+        left_boundary (_type_, optional): starting point for prediction line. Defaults to None.
+        right_boundary (_type_, optional): ending point for prediction line. Defaults to None.
+    """
+    def f(B, x):
+        '''Linear function y = m*x + b'''
+        # B is a vector of the parameters.
+        # x is an array of the current x values.
+        # x is in the same format as the x passed to Data or RealData.
+        #
+        # Return an array in the same format as y passed to Data or RealData.
+        return B[0]*x + B[1]
+    
+    # ODR stuff
+    linear = Model(f)
+    mydata = RealData(x=x, y=y, sx=xerr, sy=yerr)
+    myodr = ODR(mydata, linear, beta0=[m_guess, b_guess])
+    myoutput = myodr.run() 
+    m_pred, b_pred = myoutput.beta
+    m_err, b_err = np.sqrt(np.diag(myoutput.cov_beta))
+    print(f"Slope: {m_pred} ± {m_err} | Intercept: {b_pred} ± {b_err}")
+
+    # Create MC sample
+    n_trial = 10000
+    m_trial, b_trial = np.random.multivariate_normal(myoutput.beta, myoutput.cov_beta, n_trial).T
+
+    # Plot boundaries
+    left_ = x.min()
+    right_ = x.max()
+
+    if left_boundary:
+        left_ = left_boundary
+    if right_boundary:
+        right_ = right_boundary
+
+    x_pred = np.linspace(left_, right_, 1000)
+    y_trial = m_trial.reshape(-1, 1) * x_pred + b_trial.reshape(-1, 1)
+    y_pred = m_pred * x_pred + b_pred
+    y_pred_lower = np.quantile(y_trial, q=0.16, axis=0)
+    y_pred_upper = np.quantile(y_trial, q=0.84, axis=0)
+
+    return myoutput, x_pred, y_pred, y_pred_lower, y_pred_upper

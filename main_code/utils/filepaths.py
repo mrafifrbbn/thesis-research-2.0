@@ -178,4 +178,4 @@ POSTERIOR_SKEWNESS_IMG_FILEPATH = {
 }
 
 # Cullan's FP data
-H22_FILEPATH = os.path.join(ROOT_PATH, "data/external/h22/cullan_logdist.csv")
+H22_FILEPATH = os.path.join(ROOT_PATH, "data/external/h22/SDSS_PV_public.dat")

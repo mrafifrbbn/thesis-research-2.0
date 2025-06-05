@@ -21,6 +21,8 @@ def main():
         filepath = base_path + f"logdists/mock_{mock_id}/mock_combined.csv"
         df.to_csv(filepath, index=False)
 
+    print("Combining mocks successful!")
+
 
 if __name__ == "__main__":
     main()

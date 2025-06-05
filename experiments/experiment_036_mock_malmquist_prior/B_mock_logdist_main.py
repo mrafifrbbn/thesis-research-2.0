@@ -15,7 +15,7 @@ if not ROOT_PATH in sys.path: sys.path.append(ROOT_PATH)
 
 from main_code.utils.constants import *
 from main_code.utils.CosmoFunc import *
-from main_code.utils.functions import create_parent_folder
+from main_code.utils.functions import create_parent_folder, gaus
 
 np.random.seed(42)
 
@@ -156,7 +156,7 @@ def fit_logdist(
     dz_cluster = sp.interpolate.splev(df["z"], dist_spline)
 
     # Define the range of logdists values to be calculated
-    dmin, dmax, nd = -1.5, 1.5, 1001
+    dmin, dmax, nd = -2.0, 2.0, 1001
     dbins = np.linspace(dmin, dmax, nd, endpoint=True)
 
     # Calculate full FN

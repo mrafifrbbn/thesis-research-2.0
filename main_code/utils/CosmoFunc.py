@@ -269,8 +269,11 @@ def FP_func(params, logdists, z_obs, r, s, i, err_r, err_s, err_i, Sn, smin, lmi
         FN = np.log(0.5 * special.erfc(np.sqrt(E/(2.0*(det+delta)))*(smin-smean)))/Sn + np.log(C_m)
 
     if chi_squared_only:
+        # Returns xCx (term inside exponential)
         return chi_squared
     elif sumgals:
+        # Returns the sum of the likelihood
         return 0.5 * np.sum(chi_squared + log_det + 2.0 * FN)
     else:
+        # When both set to false, returns 0.5 * (ln |C_n| + xCx)
         return 0.5 * (chi_squared + log_det)

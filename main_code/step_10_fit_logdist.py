@@ -115,7 +115,7 @@ def fit_logdist(
     y = np.exp(logP_dist.T)
     # Save the posterior distributions
     if save_posterior:
-        logdist_posterior_filepath = os.path.join(ROOT_PATH, f'artifacts/logdist/smin_setting_{SMIN_SETTING}/fp_fit_method_{FP_FIT_METHOD}/{survey.lower()}_posterior.npy')
+        logdist_posterior_filepath = LOGDIST_POSTERIOR_OUTPUT_FILEPATH[survey]
         np.save(logdist_posterior_filepath, y)
 
     # Find mean and standard deviation of the distribution using curve_fit

@@ -219,7 +219,7 @@ def bin_data_error_weighting(x: np.array, y: np.array, yerr: np.array, xmin: flo
         y_ = y[mask_]
         yerr_ = yerr[mask_]
 
-        if len(y_) >= 5:
+        if len(y_) >= 2:
             # Calculate error-weighted mean
             w = 1 / yerr_**2
             w_sum = np.sum(w)
@@ -261,15 +261,15 @@ def ODR_linear_fit(x, y, xerr=None, yerr=None, m_guess=1.0, b_guess=0.0, left_bo
     # ODR stuff
     linear = Model(f)
     mydata = RealData(x=x, y=y, sx=xerr, sy=yerr)
-    myodr = ODR(mydata, linear, beta0=[m_guess, b_guess])
-    myoutput = myodr.run() 
-    m_pred, b_pred = myoutput.beta
-    m_err, b_err = np.sqrt(np.diag(myoutput.cov_beta))
+    odr = ODR(mydata, linear, beta0=[m_guess, b_guess])
+    odr_output = odr.run() 
+    m_pred, b_pred = odr_output.beta
+    m_err, b_err = np.sqrt(np.diag(odr_output.cov_beta))
     print(f"Slope: {m_pred} ± {m_err} | Intercept: {b_pred} ± {b_err}")
 
     # Create MC sample
     n_trial = 10000
-    m_trial, b_trial = np.random.multivariate_normal(myoutput.beta, myoutput.cov_beta, n_trial).T
+    m_trial, b_trial = np.random.multivariate_normal(odr_output.beta, odr_output.cov_beta, n_trial).T
 
     # Plot boundaries
     left_ = x.min()
@@ -286,4 +286,4 @@ def ODR_linear_fit(x, y, xerr=None, yerr=None, m_guess=1.0, b_guess=0.0, left_bo
     y_pred_lower = np.quantile(y_trial, q=0.16, axis=0)
     y_pred_upper = np.quantile(y_trial, q=0.84, axis=0)
 
-    return myoutput, x_pred, y_pred, y_pred_lower, y_pred_upper
+    return odr_output, x_pred, y_pred, y_pred_lower, y_pred_upper

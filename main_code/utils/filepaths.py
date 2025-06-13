@@ -179,3 +179,10 @@ POSTERIOR_SKEWNESS_IMG_FILEPATH = {
 
 # Cullan's FP data
 H22_FILEPATH = os.path.join(ROOT_PATH, "data/external/h22/SDSS_PV_public.dat")
+
+# Cullan's FP refit
+H22_REFIT_FILEPATH = {
+    'fp_method_0': os.path.join(ROOT_PATH, f"data/foundation/h22_refit/cullan_sdss_logdist_refit_full_fn.csv"),
+    'fp_method_1': os.path.join(ROOT_PATH, f"data/foundation/h22_refit/cullan_sdss_logdist_refit_partial_fn.csv")
+}
+H22_FP_FITS_FILEPATH = os.path.join(ROOT_PATH, f"artifacts/h22_refit/fp_fits.csv")
